@@ -1,12 +1,13 @@
 import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
 import { supabase } from "@/lib/supabase";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Modal,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -14,52 +15,76 @@ import {
 
 export default function AddHabitModal() {
   const { session } = useAuth();
-  const { modalOpen, closeModal, triggerRefresh } = useHabits();
+  const { modalOpen, closeModal, triggerRefresh, editingHabit } = useHabits();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [xp, setXp] = useState("10");
   const [frequency, setFrequency] = useState("daily");
   const [duration, setDuration] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  async function addHabit() {
+  const isEditing = editingHabit !== null;
+
+  useEffect(() => {
+    if (editingHabit) {
+      setTitle(editingHabit.title);
+      setDescription(editingHabit.description ?? "");
+      setXp(String(editingHabit.xp_reward));
+      setFrequency(editingHabit.frequency);
+      setDuration(editingHabit.duration_days ? String(editingHabit.duration_days) : "");
+      setIsPublic(editingHabit.is_public);
+    } else {
+      setTitle("");
+      setDescription("");
+      setXp("10");
+      setFrequency("daily");
+      setDuration("");
+      setIsPublic(false);
+    }
+  }, [editingHabit, modalOpen]);
+
+  async function save() {
+    if (editingHabit?.source_habit_id) {
+      Alert.alert("Non autorisé", "Tu ne peux pas modifier un challenge rejoint.");
+      return;
+    }
     if (!title.trim()) {
       Alert.alert("Oups", "Donne un titre à ton habitude.");
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("habits").insert({
-      user_id: session?.user.id,
+
+    const payload = {
       title: title.trim(),
       description: description.trim() || null,
       xp_reward: parseInt(xp) || 10,
       frequency,
       duration_days: duration ? parseInt(duration) : null,
-    });
-    setSaving(false);
-    if (error) {
-      Alert.alert("Erreur", error.message);
-      return;
+      is_public: isPublic,
+    };
+
+    let error;
+    if (isEditing) {
+      ({ error } = await supabase.from("habits").update(payload).eq("id", editingHabit!.id));
+    } else {
+      ({ error } = await supabase.from("habits").insert({ ...payload, user_id: session?.user.id }));
     }
-    setTitle("");
-    setDescription("");
-    setXp("10");
-    setFrequency("daily");
-    setDuration("");
+
+    setSaving(false);
+    if (error) { Alert.alert("Erreur", error.message); return; }
     closeModal();
     triggerRefresh();
   }
 
   return (
-    <Modal
-      visible={modalOpen}
-      animationType="slide"
-      transparent
-      onRequestClose={closeModal}
-    >
+    <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={closeModal}>
       <View style={s.bg}>
         <View style={s.box}>
-          <Text style={s.title}>Nouvelle habitude</Text>
+          <Text style={s.title}>
+            {isEditing ? "Modifier l'habitude" : "Nouvelle habitude"}
+          </Text>
+
           <TextInput
             style={s.input}
             placeholder="Titre (ex: Boire 2L d'eau)"
@@ -79,9 +104,7 @@ export default function AddHabitModal() {
               style={[s.freqBtn, frequency === "daily" && s.freqActive]}
               onPress={() => setFrequency("daily")}
             >
-              <Text
-                style={[s.freqText, frequency === "daily" && s.freqTextActive]}
-              >
+              <Text style={[s.freqText, frequency === "daily" && s.freqTextActive]}>
                 Quotidien
               </Text>
             </Pressable>
@@ -89,9 +112,7 @@ export default function AddHabitModal() {
               style={[s.freqBtn, frequency === "weekly" && s.freqActive]}
               onPress={() => setFrequency("weekly")}
             >
-              <Text
-                style={[s.freqText, frequency === "weekly" && s.freqTextActive]}
-              >
+              <Text style={[s.freqText, frequency === "weekly" && s.freqTextActive]}>
                 Hebdo
               </Text>
             </Pressable>
@@ -112,16 +133,33 @@ export default function AddHabitModal() {
             onChangeText={setXp}
           />
 
+          <View style={s.toggleRow}>
+            <View>
+              <Text style={s.toggleLabel}>
+                {isPublic ? "🌍 Challenge public" : "🔒 Privée"}
+              </Text>
+              <Text style={s.toggleSub}>
+                {isPublic
+                  ? "Visible dans les Challenges — d'autres peuvent la rejoindre"
+                  : "Visible uniquement par toi"}
+              </Text>
+            </View>
+            <Switch
+              value={isPublic}
+              onValueChange={setIsPublic}
+              trackColor={{ false: "#e5e7eb", true: "#a5b4fc" }}
+              thumbColor={isPublic ? "#6366f1" : "#f4f4f5"}
+            />
+          </View>
+
           <View style={s.actions}>
             <Pressable style={[s.btn, s.ghost]} onPress={closeModal}>
               <Text style={s.ghostText}>Annuler</Text>
             </Pressable>
-            <Pressable
-              style={[s.btn, s.primary]}
-              onPress={addHabit}
-              disabled={saving}
-            >
-              <Text style={s.primaryText}>{saving ? "..." : "Ajouter"}</Text>
+            <Pressable style={[s.btn, s.primary]} onPress={save} disabled={saving}>
+              <Text style={s.primaryText}>
+                {saving ? "..." : isEditing ? "Enregistrer" : "Ajouter"}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -131,11 +169,7 @@ export default function AddHabitModal() {
 }
 
 const s = StyleSheet.create({
-  bg: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
+  bg: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
   box: {
     backgroundColor: "white",
     padding: 24,
@@ -158,6 +192,17 @@ const s = StyleSheet.create({
   freqActive: { backgroundColor: "#6366f1", borderColor: "#6366f1" },
   freqText: { color: "#555", fontWeight: "600" },
   freqTextActive: { color: "white" },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f4f4f5",
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+  },
+  toggleLabel: { fontSize: 15, fontWeight: "700" },
+  toggleSub: { fontSize: 12, color: "#888", marginTop: 2, maxWidth: 220 },
   actions: { flexDirection: "row", gap: 12, marginTop: 8 },
   btn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
   ghost: { backgroundColor: "#f1f1f1" },

@@ -1,5 +1,5 @@
 import AddHabitModal from "@/components/AddHabitModal";
-import { HabitsProvider, useHabits } from "@/context/HabitsContext";
+import { useHabits } from "@/context/HabitsContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -67,10 +67,10 @@ function TabsInner() {
 
 export default function TabsLayout() {
   return (
-    <HabitsProvider>
+    <>
       <TabsInner />
       <AddHabitModal />
-    </HabitsProvider>
+    </>
   );
 }
 

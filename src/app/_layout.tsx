@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { HabitsProvider } from "@/context/HabitsContext";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -34,7 +35,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <RootNavigation />
+        <HabitsProvider>
+          <RootNavigation />
+        </HabitsProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );

@@ -23,6 +23,8 @@ type Habit = {
   xp_reward: number;
   frequency: string;
   duration_days: number | null;
+  is_public: boolean;
+  source_habit_id: string | null;
 };
 type Profile = { level: number; coins: number };
 
@@ -49,7 +51,7 @@ function computeStreak(dates: Set<string>) {
 
 export default function Home() {
   const { session } = useAuth();
-  const { refreshKey } = useHabits();
+  const { refreshKey, openEditModal } = useHabits();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [done, setDone] = useState<Set<string>>(new Set());
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -62,7 +64,8 @@ export default function Home() {
   const fetchHabits = useCallback(async () => {
     const { data, error } = await supabase
       .from("habits")
-      .select("id, title, description, xp_reward, frequency, duration_days")
+      .select("id, title, description, xp_reward, frequency, duration_days, is_public, source_habit_id")
+      .eq("user_id", session?.user.id)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
     if (error) Alert.alert("Erreur", error.message);
@@ -129,7 +132,7 @@ export default function Home() {
       Alert.alert("Oups", error.message);
       return;
     }
-    fetchProfile(); // maj level + coins
+    fetchProfile();
     fetchStreak();
     if (data?.leveled_up)
       Alert.alert(
@@ -138,31 +141,45 @@ export default function Home() {
       );
   }
 
-  function confirmDelete(habit: Habit) {
-    Alert.alert("Supprimer ?", `Supprimer « ${habit.title} » ?`, [
-      { text: "Annuler", style: "cancel" },
-      {
-        text: "Supprimer",
-        style: "destructive",
-        onPress: () => deleteHabit(habit.id),
-      },
-    ]);
+  function confirmRemove(habit: Habit) {
+    const isJoined = !!habit.source_habit_id;
+    Alert.alert(
+      isJoined ? "Quitter le challenge ?" : "Supprimer ?",
+      isJoined
+        ? `Quitter « ${habit.title} » ? Tu pourras le rejoindre à nouveau depuis les Challenges.`
+        : `Supprimer « ${habit.title} » ?`,
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: isJoined ? "Quitter" : "Supprimer",
+          style: "destructive",
+          onPress: () => removeHabit(habit.id),
+        },
+      ],
+    );
   }
 
-  async function deleteHabit(id: string) {
+  async function removeHabit(id: string) {
     const { error } = await supabase.from("habits").delete().eq("id", id);
-    if (error) {
-      Alert.alert("Erreur", error.message);
-      return;
-    }
+    if (error) { Alert.alert("Erreur", error.message); return; }
     setHabits((prev) => prev.filter((h) => h.id !== id));
   }
 
-  function renderRightActions(habit: Habit) {
+  function renderLeftActions(habit: Habit) {
     return (
-      <Pressable style={s.deleteBox} onPress={() => confirmDelete(habit)}>
-        <Ionicons name="trash" size={22} color="white" />
-        <Text style={s.deleteText}>Supprimer</Text>
+      <Pressable style={s.editBox} onPress={() => openEditModal(habit)}>
+        <Ionicons name="pencil" size={22} color="white" />
+        <Text style={s.editText}>Modifier</Text>
+      </Pressable>
+    );
+  }
+
+  function renderRightActions(habit: Habit) {
+    const isJoined = !!habit.source_habit_id;
+    return (
+      <Pressable style={s.deleteBox} onPress={() => confirmRemove(habit)}>
+        <Ionicons name={isJoined ? "exit-outline" : "trash"} size={22} color="white" />
+        <Text style={s.deleteText}>{isJoined ? "Quitter" : "Supprimer"}</Text>
       </Pressable>
     );
   }
@@ -215,8 +232,10 @@ export default function Home() {
           const isDone = done.has(item.id);
           return (
             <Swipeable
+              renderLeftActions={item.source_habit_id ? undefined : () => renderLeftActions(item)}
               renderRightActions={() => renderRightActions(item)}
               overshootRight={false}
+              overshootLeft={false}
             >
               <Pressable
                 style={[s.card, isDone && s.cardDone, !isToday && s.cardPast]}
@@ -236,9 +255,10 @@ export default function Home() {
                     <Text style={s.cardDesc}>{item.description}</Text>
                   ) : null}
                   {item.duration_days ? (
-                    <Text style={s.cardMeta}>
-                      📅 {item.duration_days} jours
-                    </Text>
+                    <Text style={s.cardMeta}>📅 {item.duration_days} jours</Text>
+                  ) : null}
+                  {item.is_public ? (
+                    <Text style={s.cardPublic}>🌍 Challenge public</Text>
                   ) : null}
                 </View>
                 <Text style={s.xp}>+{item.xp_reward} XP</Text>
@@ -277,7 +297,6 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  coinIcon: { fontSize: 14 },
   coinText: { color: "#ca8a04", fontWeight: "700", fontSize: 15 },
   streak: {
     flexDirection: "row",
@@ -305,7 +324,17 @@ const s = StyleSheet.create({
   cardTitleDone: { textDecorationLine: "line-through", color: "#888" },
   cardDesc: { color: "#777", marginTop: 2 },
   cardMeta: { color: "#6366f1", fontSize: 12, marginTop: 4, fontWeight: "600" },
+  cardPublic: { color: "#10b981", fontSize: 12, marginTop: 2, fontWeight: "600" },
   xp: { color: "#6366f1", fontWeight: "700" },
+  editBox: {
+    backgroundColor: "#6366f1",
+    justifyContent: "center",
+    alignItems: "center",
+    width: 90,
+    borderRadius: 12,
+    gap: 4,
+  },
+  editText: { color: "white", fontWeight: "600", fontSize: 12 },
   deleteBox: {
     backgroundColor: "#ef4444",
     justifyContent: "center",
