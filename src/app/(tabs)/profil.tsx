@@ -2,7 +2,7 @@ import Heatmap from "@/components/Heatmap";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,7 +16,7 @@ import {
   View,
 } from "react-native";
 
-type Profile = { pseudo: string; xp_total: number; level: number };
+type Profile = { pseudo: string; xp_total: number; level: number; role?: string };
 type Badge = { id: string; level: number; badge_key: string; earned_at: string };
 
 const AVATAR_COLORS = ["#6366f1","#ec4899","#f97316","#10b981","#3b82f6","#8b5cf6","#14b8a6"];
@@ -45,7 +45,7 @@ export default function Profil() {
   const fetchProfile = useCallback(async () => {
     if (!session) return;
     const [{ data: profileData, error }, { data: badgesData }] = await Promise.all([
-      supabase.from("profiles").select("pseudo, xp_total, level").eq("id", session.user.id).single(),
+      supabase.from("profiles").select("pseudo, xp_total, level, role").eq("id", session.user.id).single(),
       supabase.from("user_badges").select("id, level, badge_key, earned_at").eq("user_id", session.user.id).order("level"),
     ]);
     if (!error) setProfile(profileData);
@@ -130,6 +130,13 @@ export default function Profil() {
 
       <Heatmap />
 
+      {profile?.role === "admin" && (
+        <Pressable style={s.adminBtn} onPress={() => router.push("/admin/packs" as any)}>
+          <Ionicons name="settings-outline" size={16} color="#6366f1" />
+          <Text style={s.adminBtnText}>Gérer les packs de récompenses</Text>
+        </Pressable>
+      )}
+
       <Pressable style={s.button} onPress={() => supabase.auth.signOut()}>
         <Text style={s.buttonText}>Se déconnecter</Text>
       </Pressable>
@@ -162,7 +169,7 @@ export default function Profil() {
 }
 
 const s = StyleSheet.create({
-  container: { alignItems: "center", padding: 24, paddingTop: 70, paddingBottom: 48, gap: 10 },
+  container: { alignItems: "center", padding: 24, paddingTop: 70, paddingBottom: 48, gap: 10, backgroundColor: "#ffffff" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   avatarWrap: { position: "relative", marginBottom: 4 },
@@ -204,7 +211,9 @@ const s = StyleSheet.create({
   badgeIconWrap: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
   badgeLabel: { fontSize: 11, fontWeight: "600", textAlign: "center" },
 
-  button: { marginTop: 16, backgroundColor: "#ef4444", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
+  adminBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#eef2ff", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: "#c7d2fe" },
+  adminBtnText: { color: "#6366f1", fontWeight: "700", fontSize: 14 },
+  button: { marginTop: 8, backgroundColor: "#ef4444", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
   buttonText: { color: "white", fontWeight: "600" },
 
   modalBg: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },

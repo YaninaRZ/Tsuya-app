@@ -6,12 +6,18 @@ import {
   Alert,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
+
+type RewardPack = { id: string; name: string; difficulty: string; description: string | null };
+
+const DIFF_COLORS: Record<string, string> = { easy: "#10b981", medium: "#f97316", hard: "#ef4444" };
+const DIFF_LABELS: Record<string, string> = { easy: "Débutant", medium: "Intermédiaire", hard: "Expert" };
 
 export default function AddHabitModal() {
   const { session } = useAuth();
@@ -22,9 +28,16 @@ export default function AddHabitModal() {
   const [frequency, setFrequency] = useState("daily");
   const [duration, setDuration] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [packs, setPacks] = useState<RewardPack[]>([]);
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const isEditing = editingHabit !== null;
+
+  useEffect(() => {
+    supabase.from("reward_packs").select("id, name, difficulty, description").eq("is_active", true).order("difficulty")
+      .then(({ data }) => setPacks(data ?? []));
+  }, []);
 
   useEffect(() => {
     if (editingHabit) {
@@ -34,6 +47,7 @@ export default function AddHabitModal() {
       setFrequency(editingHabit.frequency);
       setDuration(editingHabit.duration_days ? String(editingHabit.duration_days) : "");
       setIsPublic(editingHabit.is_public);
+      setSelectedPackId((editingHabit as any).reward_pack_id ?? null);
     } else {
       setTitle("");
       setDescription("");
@@ -41,6 +55,7 @@ export default function AddHabitModal() {
       setFrequency("daily");
       setDuration("");
       setIsPublic(false);
+      setSelectedPackId(null);
     }
   }, [editingHabit, modalOpen]);
 
@@ -55,13 +70,14 @@ export default function AddHabitModal() {
     }
     setSaving(true);
 
-    const payload = {
+    const payload: Record<string, any> = {
       title: title.trim(),
       description: description.trim() || null,
       xp_reward: parseInt(xp) || 10,
       frequency,
       duration_days: duration ? parseInt(duration) : null,
       is_public: isPublic,
+      reward_pack_id: isPublic ? selectedPackId : null,
     };
 
     let error;
@@ -80,102 +96,78 @@ export default function AddHabitModal() {
   return (
     <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={closeModal}>
       <View style={s.bg}>
-        <View style={s.box}>
-          <Text style={s.title}>
-            {isEditing ? "Modifier l'habitude" : "Nouvelle habitude"}
-          </Text>
+        <View style={s.sheet}>
+          <ScrollView style={{ maxHeight: "90%" }} contentContainerStyle={s.box} keyboardShouldPersistTaps="handled">
+            <Text style={s.title}>{isEditing ? "Modifier l'habitude" : "Nouvelle habitude"}</Text>
 
-          <TextInput
-            style={s.input}
-            placeholder="Titre (ex: Boire 2L d'eau)"
-            value={title}
-            onChangeText={setTitle}
-          />
-          <TextInput
-            style={s.input}
-            placeholder="Description (optionnel)"
-            value={description}
-            onChangeText={setDescription}
-          />
+            <TextInput style={s.input} placeholder="Titre (ex: Boire 2L d'eau)" value={title} onChangeText={setTitle} />
+            <TextInput style={s.input} placeholder="Description (optionnel)" value={description} onChangeText={setDescription} />
 
-          <Text style={s.label}>Fréquence</Text>
-          <View style={s.freqRow}>
-            <Pressable
-              style={[s.freqBtn, frequency === "daily" && s.freqActive]}
-              onPress={() => setFrequency("daily")}
-            >
-              <Text style={[s.freqText, frequency === "daily" && s.freqTextActive]}>
-                Quotidien
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[s.freqBtn, frequency === "weekly" && s.freqActive]}
-              onPress={() => setFrequency("weekly")}
-            >
-              <Text style={[s.freqText, frequency === "weekly" && s.freqTextActive]}>
-                Hebdo
-              </Text>
-            </Pressable>
-          </View>
-
-          <TextInput
-            style={s.input}
-            placeholder="Durée en jours (optionnel, ex: 30)"
-            keyboardType="number-pad"
-            value={duration}
-            onChangeText={setDuration}
-          />
-          <TextInput
-            style={s.input}
-            placeholder="XP gagnés"
-            keyboardType="number-pad"
-            value={xp}
-            onChangeText={setXp}
-          />
-
-          <View style={s.toggleRow}>
-            <View>
-              <Text style={s.toggleLabel}>
-                {isPublic ? "🌍 Challenge public" : "🔒 Privée"}
-              </Text>
-              <Text style={s.toggleSub}>
-                {isPublic
-                  ? "Visible dans les Challenges — d'autres peuvent la rejoindre"
-                  : "Visible uniquement par toi"}
-              </Text>
+            <Text style={s.label}>Fréquence</Text>
+            <View style={s.freqRow}>
+              <Pressable style={[s.freqBtn, frequency === "daily" && s.freqActive]} onPress={() => setFrequency("daily")}>
+                <Text style={[s.freqText, frequency === "daily" && s.freqTextActive]}>Quotidien</Text>
+              </Pressable>
+              <Pressable style={[s.freqBtn, frequency === "weekly" && s.freqActive]} onPress={() => setFrequency("weekly")}>
+                <Text style={[s.freqText, frequency === "weekly" && s.freqTextActive]}>Hebdo</Text>
+              </Pressable>
             </View>
-            <Switch
-              value={isPublic}
-              onValueChange={setIsPublic}
-              trackColor={{ false: "#e5e7eb", true: "#a5b4fc" }}
-              thumbColor={isPublic ? "#6366f1" : "#f4f4f5"}
-            />
-          </View>
 
-          <View style={s.actions}>
-            <Pressable style={[s.btn, s.ghost]} onPress={closeModal}>
-              <Text style={s.ghostText}>Annuler</Text>
-            </Pressable>
-            <Pressable style={[s.btn, s.primary]} onPress={save} disabled={saving}>
-              <Text style={s.primaryText}>
-                {saving ? "..." : isEditing ? "Enregistrer" : "Ajouter"}
-              </Text>
-            </Pressable>
-          </View>
+            <TextInput style={s.input} placeholder="Durée en jours (optionnel, ex: 30)" keyboardType="number-pad" value={duration} onChangeText={setDuration} />
+            <TextInput style={s.input} placeholder="XP gagnés" keyboardType="number-pad" value={xp} onChangeText={setXp} />
+
+            <View style={s.toggleRow}>
+              <View>
+                <Text style={s.toggleLabel}>{isPublic ? "🌍 Challenge public" : "🔒 Privée"}</Text>
+                <Text style={s.toggleSub}>
+                  {isPublic ? "Visible dans les Challenges — d'autres peuvent la rejoindre" : "Visible uniquement par toi"}
+                </Text>
+              </View>
+              <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ false: "#e5e7eb", true: "#a5b4fc" }} thumbColor={isPublic ? "#6366f1" : "#f4f4f5"} />
+            </View>
+
+            {isPublic && packs.length > 0 && (
+              <View style={s.packSection}>
+                <Text style={s.label}>Pack de récompenses</Text>
+                <Text style={s.packSub}>Les participants gagnent un loot aléatoire en complétant ce challenge</Text>
+                <View style={s.packRow}>
+                  {packs.map((pack) => {
+                    const color = DIFF_COLORS[pack.difficulty] ?? "#888";
+                    const selected = selectedPackId === pack.id;
+                    return (
+                      <Pressable key={pack.id} style={[s.packBtn, selected && { borderColor: color, backgroundColor: color + "15" }]} onPress={() => setSelectedPackId(pack.id)}>
+                        <Text style={[s.packDiff, { color }]}>{DIFF_LABELS[pack.difficulty] ?? pack.difficulty}</Text>
+                        <Text style={s.packName}>{pack.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            <View style={s.actions}>
+              <Pressable style={[s.btn, s.ghost]} onPress={closeModal}>
+                <Text style={s.ghostText}>Annuler</Text>
+              </Pressable>
+              <Pressable style={[s.btn, s.primary]} onPress={save} disabled={saving}>
+                <Text style={s.primaryText}>{saving ? "..." : isEditing ? "Enregistrer" : "Ajouter"}</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
+
   );
 }
 
 const s = StyleSheet.create({
   bg: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
+  sheet: { backgroundColor: "white", borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: "hidden" },
   box: {
-    backgroundColor: "white",
     padding: 24,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
     gap: 12,
+    paddingBottom: 36,
   },
   title: { fontSize: 20, fontWeight: "700", marginBottom: 4 },
   label: { fontSize: 13, color: "#888", fontWeight: "600" },
@@ -203,6 +195,12 @@ const s = StyleSheet.create({
   },
   toggleLabel: { fontSize: 15, fontWeight: "700" },
   toggleSub: { fontSize: 12, color: "#888", marginTop: 2, maxWidth: 220 },
+  packSection: { gap: 8 },
+  packSub: { fontSize: 12, color: "#9ca3af" },
+  packRow: { flexDirection: "row", gap: 8 },
+  packBtn: { flex: 1, borderWidth: 1.5, borderColor: "#e5e7eb", borderRadius: 10, padding: 10, alignItems: "center", gap: 4 },
+  packDiff: { fontSize: 11, fontWeight: "700" },
+  packName: { fontSize: 12, fontWeight: "600", color: "#374151", textAlign: "center" },
   actions: { flexDirection: "row", gap: 12, marginTop: 8 },
   btn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
   ghost: { backgroundColor: "#f1f1f1" },

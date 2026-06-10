@@ -17,7 +17,17 @@ function AddButton() {
 
 function TabsInner() {
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: "#6366f1" }}>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: "#3b82f6",
+        tabBarInactiveTintColor: "#6b7280",
+        tabBarStyle: {
+          backgroundColor: "#111827",
+          borderTopWidth: 0,
+          elevation: 0,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -81,7 +91,7 @@ const ab = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: "#6366f1",
+    backgroundColor: "#3b82f6",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",

@@ -303,7 +303,7 @@ export default function Shop() {
   );
 }
 
-const BG = "#f8f8f8";
+const BG = "#ffffff";
 const CARD_BG = "#ffffff";
 const BAR_BG = "#ffffff";
 const BORDER = "#e5e7eb";
