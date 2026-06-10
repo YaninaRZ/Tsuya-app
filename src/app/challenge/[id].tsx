@@ -25,43 +25,76 @@ type ChallengeDetail = {
   author: { pseudo: string };
 };
 
+type Participant = { user_id: string; pseudo: string };
+
+const AVATAR_COLORS = ["#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#14b8a6"];
+
+function avatarColor(pseudo: string) {
+  let hash = 0;
+  for (let i = 0; i < pseudo.length; i++) hash = pseudo.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function Avatar({ pseudo, size = 36, border = true }: { pseudo: string; size?: number; border?: boolean }) {
+  return (
+    <View style={[
+      av.circle,
+      { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarColor(pseudo) },
+      border && av.border,
+    ]}>
+      <Text style={[av.initial, { fontSize: size * 0.38 }]}>
+        {pseudo.charAt(0).toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+
+const av = StyleSheet.create({
+  circle: { alignItems: "center", justifyContent: "center" },
+  border: { borderWidth: 2, borderColor: "white" },
+  initial: { color: "white", fontWeight: "700" },
+});
+
 export default function ChallengeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const { triggerRefresh } = useHabits();
   const [challenge, setChallenge] = useState<ChallengeDetail | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [joined, setJoined] = useState(false);
   const [isOwn, setIsOwn] = useState(false);
   const [joining, setJoining] = useState(false);
 
   useEffect(() => {
-    async function fetch() {
-      const { data, error } = await supabase
-        .from("habits")
-        .select(`
-          id, title, description, xp_reward, frequency, duration_days, user_id,
-          author:profiles!habits_user_id_fkey(pseudo)
-        `)
-        .eq("id", id)
-        .single();
+    async function load() {
+      const [{ data, error }, { data: parts }] = await Promise.all([
+        supabase
+          .from("habits")
+          .select(`id, title, description, xp_reward, frequency, duration_days, user_id, author:profiles!habits_user_id_fkey(pseudo)`)
+          .eq("id", id)
+          .single(),
+        supabase
+          .from("habits")
+          .select(`user_id, profile:profiles!habits_user_id_fkey(pseudo)`)
+          .eq("source_habit_id", id)
+          .eq("is_active", true),
+      ]);
 
-      if (error || !data) {
-        Alert.alert("Erreur", "Challenge introuvable.");
-        router.back();
-        return;
-      }
+      if (error || !data) { Alert.alert("Erreur", "Challenge introuvable."); router.back(); return; }
 
       const own = data.user_id === session?.user.id;
       setIsOwn(own);
       setChallenge({ ...data, author: (data as any).author ?? { pseudo: "?" } });
+      setParticipants(
+        (parts ?? []).map((p: any) => ({ user_id: p.user_id, pseudo: p.profile?.pseudo ?? "?" }))
+      );
 
       if (!own) {
         const { data: mine } = await supabase
-          .from("habits")
-          .select("id")
+          .from("habits").select("id")
           .eq("user_id", session?.user.id)
-          .eq("title", data.title)
+          .eq("source_habit_id", id)
           .eq("is_active", true)
           .maybeSingle();
         setJoined(!!mine);
@@ -69,7 +102,7 @@ export default function ChallengeDetail() {
 
       setLoading(false);
     }
-    fetch();
+    load();
   }, [id, session]);
 
   async function join() {
@@ -88,55 +121,47 @@ export default function ChallengeDetail() {
     setJoining(false);
     if (error) { Alert.alert("Erreur", error.message); return; }
     setJoined(true);
+    setParticipants((prev) => [...prev, { user_id: session!.user.id, pseudo: "Toi" }]);
     triggerRefresh();
     Alert.alert("Challenge rejoint !", `« ${challenge.title} » est dans ta liste.`);
   }
 
   function confirmLeave() {
-    Alert.alert(
-      "Quitter le challenge ?",
-      `Tu pourras le rejoindre à nouveau depuis les Challenges.`,
-      [
-        { text: "Annuler", style: "cancel" },
-        { text: "Quitter", style: "destructive", onPress: leave },
-      ],
-    );
+    Alert.alert("Quitter le challenge ?", "Tu pourras le rejoindre à nouveau depuis les Challenges.", [
+      { text: "Annuler", style: "cancel" },
+      { text: "Quitter", style: "destructive", onPress: leave },
+    ]);
   }
 
   async function leave() {
     if (!challenge) return;
     setJoining(true);
-    const { error } = await supabase
-      .from("habits")
-      .delete()
+    const { error } = await supabase.from("habits").delete()
       .eq("user_id", session?.user.id)
       .eq("source_habit_id", challenge.id);
     setJoining(false);
     if (error) { Alert.alert("Erreur", error.message); return; }
     setJoined(false);
+    setParticipants((prev) => prev.filter((p) => p.user_id !== session?.user.id));
     triggerRefresh();
   }
 
   if (loading)
-    return (
-      <View style={s.center}>
-        <ActivityIndicator color="#6366f1" size="large" />
-      </View>
-    );
+    return <View style={s.center}><ActivityIndicator color="#6366f1" size="large" /></View>;
 
   if (!challenge) return null;
 
   const freqLabel = challenge.frequency === "daily" ? "Quotidien" : "Hebdomadaire";
+  const shown = participants.slice(0, 5);
+  const extra = participants.length - shown.length;
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
-      {/* Header */}
       <Pressable style={s.backBtn} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={22} color="#6366f1" />
         <Text style={s.backText}>Challenges</Text>
       </Pressable>
 
-      {/* Hero */}
       <View style={s.hero}>
         <View style={s.heroIcon}>
           <Ionicons name="trophy" size={40} color="#6366f1" />
@@ -145,25 +170,35 @@ export default function ChallengeDetail() {
         <Text style={s.heroAuthor}>par {challenge.author.pseudo}</Text>
       </View>
 
-      {/* Chips */}
       <View style={s.chips}>
-        <View style={s.chip}>
-          <Ionicons name="repeat" size={15} color="#6366f1" />
-          <Text style={s.chipText}>{freqLabel}</Text>
-        </View>
-        <View style={s.chip}>
-          <Ionicons name="flash" size={15} color="#6366f1" />
-          <Text style={s.chipText}>+{challenge.xp_reward} XP</Text>
-        </View>
+        <View style={s.chip}><Ionicons name="repeat" size={15} color="#6366f1" /><Text style={s.chipText}>{freqLabel}</Text></View>
+        <View style={s.chip}><Ionicons name="flash" size={15} color="#6366f1" /><Text style={s.chipText}>+{challenge.xp_reward} XP</Text></View>
         {challenge.duration_days ? (
-          <View style={s.chip}>
-            <Ionicons name="calendar-outline" size={15} color="#6366f1" />
-            <Text style={s.chipText}>{challenge.duration_days} jours</Text>
-          </View>
+          <View style={s.chip}><Ionicons name="calendar-outline" size={15} color="#6366f1" /><Text style={s.chipText}>{challenge.duration_days} jours</Text></View>
         ) : null}
       </View>
 
-      {/* Description */}
+      {/* Participants */}
+      <View style={s.participantsBox}>
+        <View style={s.avatarRow}>
+          {shown.map((p, i) => (
+            <View key={p.user_id} style={[s.avatarSlot, { zIndex: shown.length - i, marginLeft: i === 0 ? 0 : -10 }]}>
+              <Avatar pseudo={p.pseudo} size={36} />
+            </View>
+          ))}
+          {extra > 0 && (
+            <View style={[s.avatarSlot, s.avatarExtra, { marginLeft: -10 }]}>
+              <Text style={s.avatarExtraText}>+{extra}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={s.participantsCount}>
+          {participants.length === 0
+            ? "Aucun participant pour l'instant"
+            : `${participants.length} participant${participants.length > 1 ? "s" : ""}`}
+        </Text>
+      </View>
+
       {challenge.description ? (
         <View style={s.section}>
           <Text style={s.sectionTitle}>Description</Text>
@@ -171,7 +206,6 @@ export default function ChallengeDetail() {
         </View>
       ) : null}
 
-      {/* Bouton */}
       {isOwn ? (
         <View style={[s.joinBtn, s.joinBtnOwn]}>
           <Ionicons name="person" size={20} color="white" />
@@ -179,24 +213,14 @@ export default function ChallengeDetail() {
         </View>
       ) : joined ? (
         <Pressable style={[s.joinBtn, s.leaveBtn]} onPress={confirmLeave} disabled={joining}>
-          {joining ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Ionicons name="exit-outline" size={20} color="white" />
-              <Text style={s.joinText}>Quitter ce challenge</Text>
-            </>
+          {joining ? <ActivityIndicator color="white" /> : (
+            <><Ionicons name="exit-outline" size={20} color="white" /><Text style={s.joinText}>Quitter ce challenge</Text></>
           )}
         </Pressable>
       ) : (
         <Pressable style={s.joinBtn} onPress={join} disabled={joining}>
-          {joining ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Ionicons name="add-circle-outline" size={20} color="white" />
-              <Text style={s.joinText}>Rejoindre ce challenge</Text>
-            </>
+          {joining ? <ActivityIndicator color="white" /> : (
+            <><Ionicons name="add-circle-outline" size={20} color="white" /><Text style={s.joinText}>Rejoindre ce challenge</Text></>
           )}
         </Pressable>
       )}
@@ -211,41 +235,22 @@ const s = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
   backText: { color: "#6366f1", fontWeight: "600", fontSize: 15 },
   hero: { alignItems: "center", gap: 10, marginVertical: 8 },
-  heroIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#eef2ff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  heroIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: "#eef2ff", alignItems: "center", justifyContent: "center" },
   heroTitle: { fontSize: 24, fontWeight: "800", textAlign: "center" },
   heroAuthor: { color: "#6366f1", fontWeight: "600", fontSize: 15 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#eef2ff",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#eef2ff", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   chipText: { color: "#6366f1", fontWeight: "700", fontSize: 14 },
+  participantsBox: { alignItems: "center", gap: 8 },
+  avatarRow: { flexDirection: "row", alignItems: "center" },
+  avatarSlot: { shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+  avatarExtra: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#e5e7eb", borderWidth: 2, borderColor: "white", alignItems: "center", justifyContent: "center" },
+  avatarExtraText: { fontSize: 11, fontWeight: "700", color: "#6b7280" },
+  participantsCount: { fontSize: 13, color: "#9ca3af", fontWeight: "600" },
   section: { gap: 6 },
   sectionTitle: { fontSize: 15, fontWeight: "700", color: "#333" },
   sectionBody: { fontSize: 15, color: "#555", lineHeight: 22 },
-  joinBtn: {
-    backgroundColor: "#6366f1",
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-  joinBtnDone: { backgroundColor: "#22c55e" },
+  joinBtn: { backgroundColor: "#6366f1", borderRadius: 14, padding: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8 },
   leaveBtn: { backgroundColor: "#ef4444" },
   joinBtnOwn: { backgroundColor: "#a855f7" },
   joinText: { color: "white", fontWeight: "700", fontSize: 16 },

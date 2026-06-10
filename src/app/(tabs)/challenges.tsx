@@ -24,7 +24,22 @@ type Challenge = {
   author: { pseudo: string };
   isOwn: boolean;
   joined: boolean;
+  participants: { user_id: string; pseudo: string }[];
 };
+
+const AVATAR_COLORS = ["#6366f1","#ec4899","#f97316","#10b981","#3b82f6","#8b5cf6","#14b8a6"];
+function avatarColor(pseudo: string) {
+  let h = 0;
+  for (let i = 0; i < pseudo.length; i++) h = pseudo.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+function Avatar({ pseudo }: { pseudo: string }) {
+  return (
+    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: avatarColor(pseudo), borderWidth: 1.5, borderColor: "white", alignItems: "center", justifyContent: "center" }}>
+      <Text style={{ color: "white", fontSize: 9, fontWeight: "700" }}>{pseudo.charAt(0).toUpperCase()}</Text>
+    </View>
+  );
+}
 
 export default function Challenges() {
   const { session } = useAuth();
@@ -36,38 +51,31 @@ export default function Challenges() {
   const fetchChallenges = useCallback(async () => {
     setLoading(true);
 
-    // Toutes les habitudes publiques
-    const { data: publicHabits, error } = await supabase
-      .from("habits")
-      .select(`
-        id, title, description, xp_reward, frequency, duration_days, user_id,
-        author:profiles!habits_user_id_fkey(pseudo)
-      `)
-      .eq("is_public", true)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
+    const [{ data: publicHabits, error }, { data: myHabits }, { data: allJoined }] = await Promise.all([
+      supabase.from("habits")
+        .select(`id, title, description, xp_reward, frequency, duration_days, user_id, author:profiles!habits_user_id_fkey(pseudo)`)
+        .eq("is_public", true).eq("is_active", true).order("created_at", { ascending: false }),
+      supabase.from("habits").select("source_habit_id").eq("user_id", session?.user.id).eq("is_active", true).not("source_habit_id", "is", null),
+      supabase.from("habits").select(`source_habit_id, user_id, profile:profiles!habits_user_id_fkey(pseudo)`).not("source_habit_id", "is", null).eq("is_active", true),
+    ]);
 
-    if (error) {
-      Alert.alert("Erreur", error.message);
-      setLoading(false);
-      return;
+    if (error) { Alert.alert("Erreur", error.message); setLoading(false); return; }
+
+    const myJoined = new Set((myHabits ?? []).map((h) => h.source_habit_id));
+
+    const participantsByHabit: Record<string, { user_id: string; pseudo: string }[]> = {};
+    for (const row of (allJoined ?? []) as any[]) {
+      if (!participantsByHabit[row.source_habit_id]) participantsByHabit[row.source_habit_id] = [];
+      participantsByHabit[row.source_habit_id].push({ user_id: row.user_id, pseudo: row.profile?.pseudo ?? "?" });
     }
-
-    // Titres de mes habitudes pour savoir lesquelles j'ai déjà rejointes
-    const { data: myHabits } = await supabase
-      .from("habits")
-      .select("title")
-      .eq("user_id", session?.user.id)
-      .eq("is_active", true);
-
-    const myTitles = new Set((myHabits ?? []).map((h) => h.title));
 
     setChallenges(
       (publicHabits ?? []).map((h: any) => ({
         ...h,
         author: h.author ?? { pseudo: "?" },
         isOwn: h.user_id === session?.user.id,
-        joined: h.user_id !== session?.user.id && myTitles.has(h.title),
+        joined: myJoined.has(h.id),
+        participants: participantsByHabit[h.id] ?? [],
       }))
     );
     setLoading(false);
@@ -158,6 +166,20 @@ export default function Challenges() {
               ) : null}
             </View>
 
+            {/* Participants */}
+            {item.participants.length > 0 && (
+              <View style={s.partRow}>
+                {item.participants.slice(0, 5).map((p, i) => (
+                  <View key={p.user_id} style={{ marginLeft: i === 0 ? 0 : -6, zIndex: 5 - i }}>
+                    <Avatar pseudo={p.pseudo} />
+                  </View>
+                ))}
+                <Text style={s.partCount}>
+                  {item.participants.length} participant{item.participants.length > 1 ? "s" : ""}
+                </Text>
+              </View>
+            )}
+
             <Pressable
               style={[
                 s.joinBtn,
@@ -247,5 +269,7 @@ const s = StyleSheet.create({
   },
   joinBtnDone: { backgroundColor: "#22c55e" },
   joinBtnOwn: { backgroundColor: "#a855f7" },
+  partRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  partCount: { color: "#9ca3af", fontSize: 12, fontWeight: "600" },
   joinText: { color: "white", fontWeight: "700", fontSize: 14 },
 });

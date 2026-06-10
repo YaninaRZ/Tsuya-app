@@ -1,3 +1,4 @@
+import BadgeModal from "@/components/BadgeModal";
 import WeekStrip from "@/components/WeekStrip";
 import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
@@ -58,20 +59,22 @@ export default function Home() {
   const [streak, setStreak] = useState(0);
   const [selectedDate, setSelectedDate] = useState(dKey(new Date()));
   const [loading, setLoading] = useState(true);
+  const [earnedBadge, setEarnedBadge] = useState<{ key: string; level: number } | null>(null);
 
   const isToday = selectedDate === dKey(new Date());
 
-  const fetchHabits = useCallback(async () => {
+  const fetchHabits = useCallback(async (date: string) => {
     const { data, error } = await supabase
       .from("habits")
       .select("id, title, description, xp_reward, frequency, duration_days, is_public, source_habit_id")
       .eq("user_id", session?.user.id)
       .eq("is_active", true)
+      .lte("start_date", date)
       .order("created_at", { ascending: false });
     if (error) Alert.alert("Erreur", error.message);
     else setHabits(data ?? []);
     setLoading(false);
-  }, []);
+  }, [session]);
 
   const fetchProfile = useCallback(async () => {
     const { data } = await supabase
@@ -99,16 +102,16 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchHabits();
+      fetchHabits(selectedDate);
       fetchProfile();
       fetchStreak();
-    }, [fetchHabits, fetchProfile, fetchStreak]),
+    }, [fetchHabits, fetchProfile, fetchStreak, selectedDate]),
   );
   useEffect(() => {
-    fetchHabits();
+    fetchHabits(selectedDate);
     fetchProfile();
     fetchStreak();
-  }, [refreshKey, fetchHabits, fetchProfile, fetchStreak]);
+  }, [refreshKey, fetchHabits, fetchProfile, fetchStreak, selectedDate]);
   useEffect(() => {
     fetchLogs(selectedDate);
   }, [selectedDate, refreshKey, fetchLogs]);
@@ -134,11 +137,13 @@ export default function Home() {
     }
     fetchProfile();
     fetchStreak();
-    if (data?.leveled_up)
-      Alert.alert(
-        "Niveau supérieur ! 🎉",
-        `Niveau ${data.level} · +${data.coins_gained} coins`,
-      );
+    if (data?.leveled_up) {
+      if (data.badge_key) {
+        setEarnedBadge({ key: data.badge_key, level: data.level });
+      } else {
+        Alert.alert("Niveau supérieur ! 🎉", `Niveau ${data.level} · +${data.coins_gained} coins`);
+      }
+    }
   }
 
   function confirmRemove(habit: Habit) {
@@ -218,6 +223,12 @@ export default function Home() {
       <Text style={s.title}>
         {isToday ? "Aujourd'hui 🎯" : `Le ${dateLabel}`}
       </Text>
+
+      <BadgeModal
+        badgeKey={earnedBadge?.key ?? null}
+        level={earnedBadge?.level ?? 0}
+        onClose={() => setEarnedBadge(null)}
+      />
 
       <FlatList
         data={habits}
