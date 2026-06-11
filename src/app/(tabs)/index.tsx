@@ -96,6 +96,7 @@ export default function Home() {
   const [streakOpen, setStreakOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<Habit | null>(null);
   const [hasRewards, setHasRewards] = useState(true);
+  const [filter, setFilter] = useState<"all" | "daily" | "weekly" | "challenge">("all");
 
   const isToday = selectedDate === dKey(new Date());
 
@@ -260,98 +261,103 @@ export default function Home() {
   const level = profile?.level ?? 1;
   const coins = profile?.coins ?? 0;
 
+  const FILTERS = [
+    { key: "all",       label: "Tous" },
+    { key: "daily",     label: "Quotidien" },
+    { key: "weekly",    label: "Hebdo" },
+    { key: "challenge", label: "Challenges" },
+  ] as const;
+
+  const filteredHabits = habits.filter((h) => {
+    if (filter === "all") return true;
+    if (filter === "daily") return h.frequency === "daily" && !h.source_habit_id;
+    if (filter === "weekly") return h.frequency === "weekly" && !h.source_habit_id;
+    if (filter === "challenge") return !!h.source_habit_id;
+    return true;
+  });
+
   return (
     <View style={s.container}>
-      {/* Top bar */}
-      <View style={s.topBar}>
-        <Text style={s.pageTitle}>Mes habitudes</Text>
-        <View style={s.topRight}>
-          <View style={s.coinPill}>
-            <CatCoin size={28} style={{ marginVertical: -4 }} />
-            <Text style={s.coinText}>{coins}</Text>
+      {/* Blue header */}
+      <View style={s.header}>
+        <View style={s.topBar}>
+          <Text style={s.pageTitle}>Mes habitudes</Text>
+          <View style={s.topRight}>
+            <View style={s.coinPill}>
+              <CatCoin size={28} style={{ marginVertical: -4 }} />
+              <Text style={s.coinText}>{coins}</Text>
+            </View>
+            <Pressable style={s.flamePill} onPress={() => setStreakOpen(true)}>
+              <Ionicons name="flame" size={15} color="#f97316" />
+              <Text style={s.flameText}>{streak}</Text>
+            </Pressable>
           </View>
-          <Pressable style={s.flamePill} onPress={() => setStreakOpen(true)}>
-            <Ionicons name="flame" size={15} color="#f97316" />
-            <Text style={s.flameText}>{streak}</Text>
-          </Pressable>
         </View>
+        <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
       </View>
 
-      <FlatList
-        data={habits}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        ListHeaderComponent={
-          <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
-        }
-        ListEmptyComponent={
-          <View style={s.emptyWrap}>
-            <Text style={s.emptyEmoji}>🌱</Text>
-            <Text style={s.emptyText}>Aucune habitude.{"\n"}Appuie sur + pour commencer !</Text>
-          </View>
-        }
-        renderItem={({ item }) => {
-          const isDone = done.has(item.id);
-          const chip = statusChip(isDone, item.is_public && !item.source_habit_id, streak);
-          const arcColor = isDone ? "#60a5fa" : item.source_habit_id ? "#a78bfa" : "#f9a8d4";
-          const arcPercent = isDone ? 1 : 0;
-
-          return (
-            <Swipeable
-              renderLeftActions={item.source_habit_id ? undefined : () => renderLeftActions(item)}
-              renderRightActions={() => renderRightActions(item)}
-              overshootRight={false}
-              overshootLeft={false}
+      {/* White content area */}
+      <View style={s.content}>
+        {/* Filter pills */}
+        <View style={s.pillsRow}>
+          {FILTERS.map((f) => (
+            <Pressable
+              key={f.key}
+              style={[s.filterPill, filter === f.key && s.filterPillActive]}
+              onPress={() => setFilter(f.key)}
             >
-              <Pressable
-                style={[s.card, isDone && s.cardDone, !isToday && s.cardPast]}
-                onPress={() => complete(item)}
-                disabled={isToday && isDone}
+              <Text style={[s.filterPillText, filter === f.key && s.filterPillTextActive]}>{f.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <FlatList
+          data={filteredHabits}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 18, paddingTop: 8 }}
+          ListEmptyComponent={
+            <View style={s.emptyWrap}>
+              <Text style={s.emptyEmoji}>🌱</Text>
+              <Text style={s.emptyText}>Aucune habitude.{"\n"}Appuie sur + pour commencer !</Text>
+            </View>
+          }
+          renderItem={({ item }) => {
+            const isDone = done.has(item.id);
+            const isChallenge = !!item.source_habit_id;
+            const cardBg = isDone ? "#e0f2fe" : isChallenge ? "#ede9fe" : "#eff6ff";
+            const emoji = item.title.match(/^\p{Emoji}/u)?.[0] ?? (isChallenge ? "🏆" : "✨");
+            const titleClean = item.title.replace(/^\p{Emoji}\s*/u, "");
+
+            return (
+              <Swipeable
+                renderLeftActions={isChallenge ? undefined : () => renderLeftActions(item)}
+                renderRightActions={() => renderRightActions(item)}
+                overshootRight={false}
+                overshootLeft={false}
               >
-                {/* Arc gauge */}
-                <View style={s.arcWrap}>
-                  <ArcGauge percent={arcPercent} color={arcColor} size={62} />
-                  <View style={s.arcCenter}>
-                    {isDone
-                      ? <Ionicons name="checkmark" size={18} color="#10b981" />
-                      : <Ionicons name="ellipse-outline" size={18} color="#c4c4c4" />}
+                <Pressable
+                  style={[s.card, { backgroundColor: cardBg }, !isToday && s.cardPast]}
+                  onPress={() => complete(item)}
+                  disabled={isToday && isDone}
+                >
+                  {/* Arc gauge */}
+                  <View style={s.arcWrap}>
+                    <ArcGauge percent={isDone ? 1 : 0} color={isDone ? "#60a5fa" : isChallenge ? "#a78bfa" : "#f9a8d4"} size={62} />
+                    <View style={s.arcCenter}>
+                      {isDone
+                        ? <Ionicons name="checkmark" size={18} color="#10b981" />
+                        : <Ionicons name="ellipse-outline" size={18} color="#c4c4c4" />}
+                    </View>
                   </View>
-                </View>
 
-                {/* Content */}
-                <View style={s.cardBody}>
-                  <Text style={[s.cardTitle, isDone && s.cardTitleDone]} numberOfLines={2}>{item.title}</Text>
-
-                  <View style={s.cardMeta}>
-                    <View style={s.metaChip}>
-                      <Ionicons name="repeat" size={11} color="#6b7280" />
-                      <Text style={s.metaText}>{item.frequency === "daily" ? "Quotidien" : "Hebdo"}</Text>
-                    </View>
-                    <View style={s.metaChip}>
-                      <Ionicons name="flash" size={11} color="#6366f1" />
-                      <Text style={[s.metaText, { color: "#6366f1" }]}>+{item.xp_reward} XP</Text>
-                    </View>
-                    {item.duration_days && item.source_habit_id ? (
-                      <View style={[s.metaChip, { backgroundColor: "#dbeafe" }]}>
-                        <Ionicons name="calendar-outline" size={11} color="#3b82f6" />
-                        <Text style={[s.metaText, { color: "#3b82f6" }]}>
-                          {item.completionCount ?? 0}/{item.duration_days}j
-                        </Text>
-                      </View>
-                    ) : item.duration_days ? (
-                      <View style={s.metaChip}>
-                        <Ionicons name="calendar-outline" size={11} color="#6b7280" />
-                        <Text style={s.metaText}>{item.duration_days}j</Text>
-                      </View>
+                  {/* Content */}
+                  <View style={s.cardBody}>
+                    <Text style={s.cardFreq}>{item.frequency === "daily" ? "Quotidien" : "Hebdomadaire"}</Text>
+                    <Text style={[s.cardTitle, isDone && s.cardTitleDone]} numberOfLines={2}>{titleClean}</Text>
+                    {item.duration_days && isChallenge ? (
+                      <Text style={s.cardProgress}>{item.completionCount ?? 0}/{item.duration_days} jours</Text>
                     ) : null}
-                  </View>
-
-                  <View style={s.cardBottom}>
-                    <View style={[s.statusChip, { backgroundColor: chip.bg }]}>
-                      <Ionicons name={chip.icon} size={12} color={chip.color} />
-                      <Text style={[s.statusText, { color: chip.color }]}>{chip.label}</Text>
-                    </View>
                     {item.packInfo ? (
                       <View style={[s.packChip, { borderColor: PACK_COLORS[item.packInfo.difficulty] ?? "#888" }]}>
                         <Ionicons name="gift-outline" size={11} color={PACK_COLORS[item.packInfo.difficulty] ?? "#888"} />
@@ -359,12 +365,17 @@ export default function Home() {
                       </View>
                     ) : null}
                   </View>
-                </View>
-              </Pressable>
-            </Swipeable>
-          );
-        }}
-      />
+
+                  {/* Circle checkbox */}
+                  <View style={[s.circle, isDone && s.circleDone]}>
+                    {isDone && <Ionicons name="checkmark" size={18} color="white" />}
+                  </View>
+                </Pressable>
+              </Swipeable>
+            );
+          }}
+        />
+      </View>
 
       <StreakModal visible={streakOpen} onClose={() => setStreakOpen(false)} />
       <ConfirmModal
@@ -406,20 +417,28 @@ export default function Home() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#ffffff", paddingHorizontal: 18, paddingTop: 72 },
+  container: { flex: 1, backgroundColor: "#dbeafe" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // Top bar
+  // Blue header
+  header: { backgroundColor: "#dbeafe", paddingTop: 64, paddingHorizontal: 18, paddingBottom: 20 },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  pageTitle: { fontSize: 26, fontWeight: "800", color: "#0f172a" },
+  pageTitle: { fontSize: 26, fontWeight: "800", color: "#1e3a5f" },
   topRight: { flexDirection: "row", gap: 8 },
-  coinPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#fef9c3", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  coinText: { color: "#b45309", fontWeight: "700", fontSize: 14 },
-  flamePill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#fff7ed", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+  coinPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.7)", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+  coinText: { color: "#1e3a5f", fontWeight: "700", fontSize: 14 },
+  flamePill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.7)", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
   flameText: { color: "#ea580c", fontWeight: "700", fontSize: 14 },
 
-  // Section header
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#1e1b4b", marginBottom: 12 },
+  // White content
+  content: { flex: 1, backgroundColor: "white", borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+
+  // Filter pills
+  pillsRow: { flexDirection: "row", gap: 8, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 4 },
+  filterPill: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 24, backgroundColor: "#f1f5f9" },
+  filterPillActive: { backgroundColor: "#bfdbfe" },
+  filterPillText: { fontSize: 13, fontWeight: "600", color: "#64748b" },
+  filterPillTextActive: { color: "#1e3a5f", fontWeight: "800" },
 
   // Empty state
   emptyWrap: { alignItems: "center", marginTop: 48, gap: 10 },
@@ -427,25 +446,22 @@ const s = StyleSheet.create({
   emptyText: { textAlign: "center", color: "#9ca3af", lineHeight: 22, fontSize: 14 },
 
   // Habit cards
-  card: { backgroundColor: "white", borderRadius: 18, padding: 14, flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10, shadowColor: "#1e1b4b", shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  cardDone: { backgroundColor: "#f0f7ff" },
+  card: { borderRadius: 22, padding: 16, flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 12 },
   cardPast: { opacity: 0.6 },
   arcWrap: { width: 62, height: 62, alignItems: "center", justifyContent: "center", position: "relative" },
   arcCenter: { position: "absolute" },
-  cardBody: { flex: 1, gap: 5 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: "#1e1b4b", lineHeight: 20 },
+  cardBody: { flex: 1, gap: 3 },
+  cardFreq: { fontSize: 11, fontWeight: "600", color: "#64748b" },
+  cardTitle: { fontSize: 15, fontWeight: "800", color: "#0f172a", lineHeight: 21 },
   cardTitleDone: { textDecorationLine: "line-through", color: "#9ca3af" },
-  cardMeta: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
-  metaChip: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#f1f5f9", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  metaText: { fontSize: 11, color: "#64748b", fontWeight: "600" },
-  cardBottom: { flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
-  statusChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 },
-  statusText: { fontSize: 12, fontWeight: "700" },
-  packChip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  cardProgress: { fontSize: 11, color: "#3b82f6", fontWeight: "600" },
+  circle: { width: 34, height: 34, borderRadius: 17, borderWidth: 2.5, borderColor: "#cbd5e1", alignItems: "center", justifyContent: "center" },
+  circleDone: { backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
+  packChip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start" },
   packText: { fontSize: 11, fontWeight: "700" },
 
   // Swipe actions
-  editBox: { backgroundColor: "#7c3aed", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 18, gap: 4, marginBottom: 10 },
-  deleteBox: { backgroundColor: "#ef4444", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 18, gap: 4, marginBottom: 10 },
+  editBox: { backgroundColor: "#7c3aed", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 22, gap: 4, marginBottom: 12 },
+  deleteBox: { backgroundColor: "#ef4444", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 22, gap: 4, marginBottom: 12 },
   swipeLabel: { color: "white", fontWeight: "600", fontSize: 11 },
 });

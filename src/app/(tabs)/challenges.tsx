@@ -144,73 +144,71 @@ export default function Challenges() {
             <Text style={s.emptyText}>Aucun challenge disponible.{"\n"}Crée une habitude publique !</Text>
           </View>
         }
-        renderItem={({ item }) => {
-          return (
-            <Pressable style={s.card} onPress={() => router.push(`/challenge/${item.id}` as any)}>
-              <View style={s.cardBody}>
-                <Text style={s.cardTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={s.cardAuthor}>{item.author.pseudo}</Text>
+        renderItem={({ item, index }) => {
+          const cardBg = index % 2 === 0 ? "#f0eeff" : "#fff0f6";
+          const illus = index % 2 === 0
+            ? require("../../../assets/images/small-cat.png")
+            : require("../../../assets/images/happy-tsuya.png");
 
-                <View style={s.metaRow}>
-                  <View style={s.metaChip}>
-                    <Ionicons name="repeat" size={11} color="#64748b" />
-                    <Text style={s.metaText}>{item.frequency === "daily" ? "Quotidien" : "Hebdo"}</Text>
-                  </View>
-                  <View style={s.metaChip}>
-                    <Ionicons name="flash" size={11} color="#3b82f6" />
-                    <Text style={[s.metaText, { color: "#3b82f6" }]}>+{item.xp_reward} XP</Text>
-                  </View>
-                  {item.duration_days ? (
-                    <View style={s.metaChip}>
-                      <Ionicons name="calendar-outline" size={11} color="#64748b" />
-                      <Text style={s.metaText}>{item.duration_days}j</Text>
-                    </View>
-                  ) : null}
-                </View>
+          return (
+            <Pressable style={[s.card, { backgroundColor: cardBg }]} onPress={() => router.push(`/challenge/${item.id}` as any)}>
+
+              {/* Left content */}
+              <View style={s.cardLeft}>
+                <Text style={s.cardTitle} numberOfLines={2}>{item.title}</Text>
+                <Text style={s.cardAuthor}>par {item.author.pseudo}</Text>
 
                 {/* Participants */}
-                {item.participants.length > 0 && (
-                  <View style={s.partRow}>
-                    {item.participants.slice(0, 4).map((p, i) => (
-                      <View key={p.user_id} style={{ marginLeft: i === 0 ? 0 : -7, zIndex: 4 - i }}>
-                        <Avatar pseudo={p.pseudo} size={22} />
-                      </View>
-                    ))}
-                    <Text style={s.partCount}>{item.participants.length} participant{item.participants.length > 1 ? "s" : ""}</Text>
-                  </View>
-                )}
+                <View style={s.partRow}>
+                  {item.participants.slice(0, 3).map((p, i) => (
+                    <View key={p.user_id} style={{ marginLeft: i === 0 ? 0 : -8, zIndex: 3 - i }}>
+                      <Avatar pseudo={p.pseudo} size={26} />
+                    </View>
+                  ))}
+                  {item.participants.length > 0 && (
+                    <Text style={s.partCount}>
+                      {item.participants.length} participant{item.participants.length > 1 ? "s" : ""}
+                    </Text>
+                  )}
+                </View>
 
-                {/* Bottom button */}
-                {item.isOwn ? (
-                  <View style={[s.actionBtn, s.btnOwn]}>
-                    <Ionicons name="person" size={15} color="#7c3aed" />
-                    <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>Mon challenge</Text>
-                  </View>
-                ) : item.joined ? (
-                  <View style={[s.actionBtn, s.btnJoined]}>
-                    <Ionicons name="checkmark-circle" size={15} color="#1d4ed8" />
-                    <Text style={[s.actionBtnText, { color: "#1d4ed8" }]}>Rejoint ✓</Text>
-                  </View>
-                ) : item.hasLeft ? (
-                  <View style={[s.actionBtn, s.btnLeft]}>
-                    <Ionicons name="close-circle-outline" size={15} color="#9ca3af" />
-                    <Text style={[s.actionBtnText, { color: "#9ca3af" }]}>Challenge quitté</Text>
-                  </View>
-                ) : (
-                  <Pressable
-                    style={[s.actionBtn, s.btnJoin]}
-                    onPress={() => join(item)}
-                    disabled={joining === item.id}
-                  >
-                    {joining === item.id
-                      ? <ActivityIndicator color="white" size="small" />
-                      : <>
-                          <Ionicons name="add-circle-outline" size={15} color="white" />
-                          <Text style={[s.actionBtnText, { color: "white" }]}>Rejoindre</Text>
-                        </>}
-                  </Pressable>
-                )}
+                {/* Action button */}
+                <View style={s.cardBottomRow}>
+                  {item.isOwn ? (
+                    <View style={[s.actionBtn, s.btnOwn]}>
+                      <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>Mon challenge</Text>
+                    </View>
+                  ) : item.joined ? (
+                    <View style={[s.actionBtn, s.btnJoined]}>
+                      <Ionicons name="checkmark-circle" size={14} color="#1d4ed8" />
+                      <Text style={[s.actionBtnText, { color: "#1d4ed8" }]}>Rejoint ✓</Text>
+                    </View>
+                  ) : item.hasLeft ? (
+                    <View style={[s.actionBtn, s.btnLeft]}>
+                      <Text style={[s.actionBtnText, { color: "#9ca3af" }]}>Quitté</Text>
+                    </View>
+                  ) : (
+                    <Pressable style={[s.actionBtn, s.btnJoin]} onPress={() => join(item)} disabled={joining === item.id}>
+                      {joining === item.id
+                        ? <ActivityIndicator color="white" size="small" />
+                        : <Text style={[s.actionBtnText, { color: "white" }]}>Rejoindre</Text>}
+                    </Pressable>
+                  )}
+
+                  {item.duration_days ? (
+                    <View style={s.durationPill}>
+                      <Text style={s.durationText}>{item.duration_days} jours</Text>
+                    </View>
+                  ) : (
+                    <View style={s.durationPill}>
+                      <Text style={s.durationText}>+{item.xp_reward} XP</Text>
+                    </View>
+                  )}
+                </View>
               </View>
+
+              {/* Right illustration */}
+              <Image source={illus} style={s.cardIllus} resizeMode="contain" />
             </Pressable>
           );
         }}
@@ -238,35 +236,28 @@ const s = StyleSheet.create({
   emptyText: { textAlign: "center", color: "#94a3b8", lineHeight: 22, fontSize: 14 },
 
   card: {
-    backgroundColor: "white",
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 22,
+    padding: 18,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    alignItems: "flex-start",
+    overflow: "hidden",
   },
-  cardBody: { flex: 1, gap: 4 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: "#0f172a", lineHeight: 20 },
-  cardAuthor: { fontSize: 12, color: "#94a3b8", fontWeight: "500" },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 2 },
-  metaChip: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#f8fafc", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  metaText: { fontSize: 11, color: "#64748b", fontWeight: "600" },
+  cardLeft: { flex: 1, gap: 6, paddingRight: 8 },
+  cardTitle: { fontSize: 18, fontWeight: "800", color: "#0f172a", lineHeight: 24 },
+  cardAuthor: { fontSize: 12, color: "#64748b", fontWeight: "500" },
   partRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  partCount: { fontSize: 11, color: "#94a3b8", fontWeight: "600", marginLeft: 4 },
+  partCount: { fontSize: 12, color: "#475569", fontWeight: "600", marginLeft: 6 },
+  cardBottomRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
   actionBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, marginTop: 10, paddingVertical: 11, borderRadius: 12,
+    gap: 5, paddingVertical: 9, paddingHorizontal: 16, borderRadius: 20,
   },
-  actionBtnText: { fontSize: 14, fontWeight: "700" },
-  btnJoin: { backgroundColor: "#3b82f6" },
+  actionBtnText: { fontSize: 13, fontWeight: "700" },
+  btnJoin: { backgroundColor: "#0f172a" },
   btnJoined: { backgroundColor: "#dbeafe" },
   btnLeft: { backgroundColor: "#f3f4f6" },
   btnOwn: { backgroundColor: "#ede9fe" },
+  durationPill: { backgroundColor: "rgba(0,0,0,0.08)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
+  durationText: { fontSize: 12, fontWeight: "700", color: "#374151" },
+  cardIllus: { width: 90, height: 90, marginTop: -4 },
 });

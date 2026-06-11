@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 const DAYS_BACK = 60;
+const DAYS_FORWARD = 14;
 const WEEKDAYS = ["D", "L", "M", "M", "J", "V", "S"]; // getDay: 0 = dimanche
 const MONTHS = [
   "Janvier",
@@ -39,7 +40,7 @@ function toKey(d: Date) {
 function buildDays() {
   const today = new Date();
   const arr: Date[] = [];
-  for (let i = DAYS_BACK; i >= 0; i--) {
+  for (let i = DAYS_BACK; i >= -DAYS_FORWARD; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
     arr.push(d);
@@ -128,8 +129,8 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  circleToday: { borderWidth: 2, borderColor: "#6366f1" },
-  circleSelected: { backgroundColor: "#6366f1" },
+  circleToday: { borderWidth: 2, borderColor: "#3b82f6" },
+  circleSelected: { backgroundColor: "#3b82f6" },
   dateText: { fontSize: 15, color: "#333", fontWeight: "600" },
   dateTextSelected: { color: "white", fontWeight: "700" },
 });
