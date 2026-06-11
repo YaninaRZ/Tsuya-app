@@ -4,6 +4,8 @@ import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import CatCoin from "@/components/CatCoin";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
+import { decode } from "base64-arraybuffer";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -19,7 +21,7 @@ import {
   View,
 } from "react-native";
 
-type Profile = { pseudo: string; xp_total: number; level: number; coins: number; role?: string; banner_url?: string | null };
+type Profile = { pseudo: string; xp_total: number; level: number; coins: number; role?: string; banner_url?: string | null; avatar_url?: string | null };
 type PredefinedBanner = { id: string; name: string; url: string };
 type Stats = { activeDays: number; habitsCount: number; challengesDone: number; totalCompletions: number };
 type Badge = { id: string; level: number; badge_key: string; earned_at: string };
@@ -62,13 +64,15 @@ export default function Profil() {
   const [editOpen, setEditOpen] = useState(false);
   const [editPseudo, setEditPseudo] = useState("");
   const [editBannerUrl, setEditBannerUrl] = useState<string | null>(null);
+  const [editAvatarUrl, setEditAvatarUrl] = useState<string | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!session) return;
     const [{ data: profileData }, { data: badgesData }, { data: logs }, { data: habits }, { data: challenges }, { data: bannersData }] = await Promise.all([
-      supabase.from("profiles").select("pseudo, xp_total, level, coins, role, banner_url").eq("id", session.user.id).single(),
+      supabase.from("profiles").select("pseudo, xp_total, level, coins, role, banner_url, avatar_url").eq("id", session.user.id).single(),
       supabase.from("user_badges").select("id, level, badge_key, earned_at").eq("user_id", session.user.id).order("level"),
       supabase.from("habit_logs").select("completed_on").eq("user_id", session.user.id),
       supabase.from("habits").select("id").eq("user_id", session.user.id).eq("is_active", true).is("source_habit_id", null),
@@ -92,6 +96,26 @@ export default function Profil() {
 
   useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
+  async function pickAvatar() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled) return;
+    setUploadingAvatar(true);
+    const asset = result.assets[0];
+    const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
+    const path = `${session?.user.id}/avatar_${Date.now()}.${ext}`;
+    const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
+    const { error: uploadErr } = await supabase.storage.from("avatars").upload(path, decode(base64), { contentType: `image/${ext}`, upsert: true });
+    setUploadingAvatar(false);
+    if (uploadErr) { Alert.alert("Erreur upload", uploadErr.message); return; }
+    const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+    setEditAvatarUrl(publicUrl);
+  }
+
   async function pickBanner() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
@@ -102,11 +126,10 @@ export default function Profil() {
     if (result.canceled) return;
     setUploadingBanner(true);
     const asset = result.assets[0];
-    const ext = asset.uri.split(".").pop() ?? "jpg";
+    const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
     const path = `${session?.user.id}/${Date.now()}.${ext}`;
-    const response = await fetch(asset.uri);
-    const blob = await response.blob();
-    const { error: uploadErr } = await supabase.storage.from("banners").upload(path, blob, { contentType: `image/${ext}`, upsert: true });
+    const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
+    const { error: uploadErr } = await supabase.storage.from("banners").upload(path, decode(base64), { contentType: `image/${ext}`, upsert: true });
     setUploadingBanner(false);
     if (uploadErr) { Alert.alert("Erreur upload", uploadErr.message); return; }
     const { data: { publicUrl } } = supabase.storage.from("banners").getPublicUrl(path);
@@ -116,10 +139,10 @@ export default function Profil() {
   async function saveProfile() {
     if (!editPseudo.trim()) { Alert.alert("Oups", "Le pseudo ne peut pas être vide."); return; }
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({ pseudo: editPseudo.trim(), banner_url: editBannerUrl }).eq("id", session?.user.id);
+    const { error } = await supabase.from("profiles").update({ pseudo: editPseudo.trim(), banner_url: editBannerUrl, avatar_url: editAvatarUrl }).eq("id", session?.user.id);
     setSaving(false);
     if (error) { Alert.alert("Erreur", error.message); return; }
-    setProfile((prev) => prev ? { ...prev, pseudo: editPseudo.trim(), banner_url: editBannerUrl } : prev);
+    setProfile((prev) => prev ? { ...prev, pseudo: editPseudo.trim(), banner_url: editBannerUrl, avatar_url: editAvatarUrl } : prev);
     setEditOpen(false);
     supabase.rpc("check_badges", { p_user_id: session?.user.id });
     fetchProfile();
@@ -141,7 +164,7 @@ export default function Profil() {
       {/* Banner */}
       <View style={[s.banner, { backgroundColor: bannerA }]}>
         {profile?.banner_url
-          ? <Image source={{ uri: profile.banner_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ? <Image key={profile.banner_url} source={{ uri: profile.banner_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           : <>
               <View style={[s.deco1, { backgroundColor: bannerB + "66" }]} />
               <View style={[s.deco2, { backgroundColor: bannerB + "44" }]} />
@@ -168,10 +191,17 @@ export default function Profil() {
 
       {/* Avatar row */}
       <View style={s.avatarRow}>
-        <View style={[s.avatarCircle, { backgroundColor: color }]}>
-          <Text style={s.avatarInitial}>{pseudo.charAt(0).toUpperCase()}</Text>
-        </View>
-        <Pressable style={s.modifierBtn} onPress={() => { setEditPseudo(pseudo); setEditBannerUrl(profile?.banner_url ?? null); setEditOpen(true); }}>
+        <Pressable onPress={() => { setEditPseudo(pseudo); setEditBannerUrl(profile?.banner_url ?? null); setEditAvatarUrl(profile?.avatar_url ?? null); setEditOpen(true); }}>
+          <View style={[s.avatarCircle, { backgroundColor: color }]}>
+            {profile?.avatar_url
+              ? <Image key={profile.avatar_url} source={{ uri: profile.avatar_url }} style={{ width: "100%", height: "100%", borderRadius: 999 }} resizeMode="cover" />
+              : <Text style={s.avatarInitial}>{pseudo.charAt(0).toUpperCase()}</Text>}
+          </View>
+          <View style={s.avatarCamBtn}>
+            <Ionicons name="camera" size={12} color="white" />
+          </View>
+        </Pressable>
+        <Pressable style={s.modifierBtn} onPress={() => { setEditPseudo(pseudo); setEditBannerUrl(profile?.banner_url ?? null); setEditAvatarUrl(profile?.avatar_url ?? null); setEditOpen(true); }}>
           <Ionicons name="create-outline" size={16} color={color} />
           <Text style={[s.modifierText, { color }]}>Modifier</Text>
         </Pressable>
@@ -194,9 +224,9 @@ export default function Profil() {
           <Ionicons name="star" size={13} color={color} />
           <Text style={[s.pillText, { color }]}>Niveau {level}</Text>
         </View>
-        <View style={[s.pill, { backgroundColor: "#fef9c3" }]}>
+        <View style={[s.pill, { backgroundColor: "white", borderWidth: 1, borderColor: "#e2e8f0" }]}>
           <CatCoin size={28} style={{ marginVertical: -4 }} />
-          <Text style={[s.pillText, { color: "#92400e" }]}>{coins} coins</Text>
+          <Text style={[s.pillText, { color: "#1e3a5f" }]}>{coins} coins</Text>
         </View>
       </View>
 
@@ -281,6 +311,27 @@ export default function Profil() {
           <ScrollView style={s.modalScroll} contentContainerStyle={s.modalBox} keyboardShouldPersistTaps="handled">
             <Text style={s.modalTitle}>Modifier le profil</Text>
 
+            {/* Avatar upload */}
+            <Text style={s.modalLabel}>Photo de profil</Text>
+            <Pressable style={s.avatarUploadRow} onPress={pickAvatar} disabled={uploadingAvatar}>
+              <View style={[s.avatarCircleSmall, { backgroundColor: color }]}>
+                {editAvatarUrl
+                  ? <Image key={editAvatarUrl} source={{ uri: editAvatarUrl }} style={{ width: "100%", height: "100%", borderRadius: 999 }} resizeMode="cover" />
+                  : <Text style={{ color: "white", fontSize: 22, fontWeight: "700" }}>{pseudo.charAt(0).toUpperCase()}</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                {uploadingAvatar
+                  ? <ActivityIndicator size="small" color="#3b82f6" />
+                  : <Text style={s.uploadText}>Choisir une photo</Text>}
+                {editAvatarUrl && (
+                  <Pressable onPress={() => setEditAvatarUrl(null)}>
+                    <Text style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>Supprimer la photo</Text>
+                  </Pressable>
+                )}
+              </View>
+              <Ionicons name="camera-outline" size={20} color="#3b82f6" />
+            </Pressable>
+
             <Text style={s.modalLabel}>Pseudo</Text>
             <TextInput
               style={s.input}
@@ -312,7 +363,7 @@ export default function Profil() {
             <Pressable style={[s.uploadRow, uploadingBanner && { opacity: 0.6 }]} onPress={pickBanner} disabled={uploadingBanner}>
               {uploadingBanner
                 ? <ActivityIndicator size="small" color="#6366f1" />
-                : <Ionicons name="image-outline" size={18} color="#6366f1" />}
+                : <Ionicons name="image-outline" size={18} color="#3b82f6" />}
               <Text style={s.uploadText}>{uploadingBanner ? "Upload en cours..." : "Choisir depuis ma galerie"}</Text>
             </Pressable>
 
@@ -336,7 +387,7 @@ export default function Profil() {
               <Pressable style={[s.modalBtn, s.ghost]} onPress={() => setEditOpen(false)}>
                 <Text style={s.ghostText}>Annuler</Text>
               </Pressable>
-              <Pressable style={[s.modalBtn, { backgroundColor: color }]} onPress={saveProfile} disabled={saving}>
+              <Pressable style={[s.modalBtn, { backgroundColor: "#3b82f6" }]} onPress={saveProfile} disabled={saving}>
                 <Text style={s.primaryText}>{saving ? "..." : "Enregistrer"}</Text>
               </Pressable>
             </View>
@@ -363,8 +414,11 @@ const s = StyleSheet.create({
 
   // Avatar row
   avatarRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 20, marginTop: -38 },
-  avatarCircle: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", borderWidth: 4, borderColor: "white" },
+  avatarCircle: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", borderWidth: 4, borderColor: "white", overflow: "hidden" },
   avatarInitial: { color: "white", fontSize: 32, fontWeight: "800" },
+  avatarCamBtn: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: "#3b82f6", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "white" },
+  avatarUploadRow: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: "#f8fafc", borderRadius: 14, padding: 12, marginBottom: 8 },
+  avatarCircleSmall: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   modifierBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1.5, borderColor: "#e5e7eb", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "white", marginBottom: 6 },
   modifierText: { fontSize: 14, fontWeight: "700" },
 
@@ -438,8 +492,8 @@ const s = StyleSheet.create({
   // Banner picker
   bannerPreview: { height: 80, borderRadius: 14, overflow: "hidden", backgroundColor: "#e5e7eb", position: "relative" },
   clearBanner: { position: "absolute", top: 6, right: 6 },
-  uploadRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderColor: "#c7d2fe", borderRadius: 10, padding: 12, borderStyle: "dashed" },
-  uploadText: { color: "#6366f1", fontWeight: "600", fontSize: 14 },
+  uploadRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderColor: "#bfdbfe", borderRadius: 10, padding: 12, borderStyle: "dashed" },
+  uploadText: { color: "#3b82f6", fontWeight: "600", fontSize: 14 },
   bannersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   bannerThumb: { width: "47%", borderRadius: 10, overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
   bannerThumbSelected: { borderColor: "#6366f1" },

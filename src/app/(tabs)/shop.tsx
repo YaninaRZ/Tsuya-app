@@ -168,7 +168,7 @@ export default function Shop() {
 
         {available.length === 0 && (
           <View style={s.empty}>
-            <Text style={s.emptyIcon}>🎁</Text>
+            <Image source={require("../../../assets/images/money/cat-cupon-free-reward.png")} style={{ width: 140, height: 140 }} resizeMode="contain" />
             <Text style={s.emptyText}>Aucune récompense.{"\n"}Appuie sur + pour en créer une !</Text>
           </View>
         )}
@@ -188,7 +188,7 @@ export default function Shop() {
             >
               <Pressable style={s.card} onPress={() => setBuyTarget(item)} onLongPress={() => openEdit(item)}>
                 <View style={s.cardLeft}>
-                  <Text style={s.cardEmoji}>{item.title.match(/^\S+/)?.[0] ?? "🎁"}</Text>
+                  {(() => { const e = item.title.match(/^\S+/)?.[0] ?? "🎁"; return e === "🎁" ? <Image source={require("../../../assets/images/money/cat-cupon-free-reward.png")} style={{ width: 36, height: 36 }} resizeMode="contain" /> : <Text style={s.cardEmoji}>{e}</Text>; })()}
                   <View>
                     <Text style={s.cardTitle} numberOfLines={1}>{item.title.replace(/^\S+\s*/, "")}</Text>
                     {item.description
@@ -213,7 +213,7 @@ export default function Shop() {
             {claimed.map((item) => (
               <View key={item.id} style={[s.card, s.cardClaimed]}>
                 <View style={s.cardLeft}>
-                  <Text style={[s.cardEmoji, { opacity: 0.4 }]}>{item.title.match(/^\S+/)?.[0] ?? "🎁"}</Text>
+                  {(() => { const e = item.title.match(/^\S+/)?.[0] ?? "🎁"; return e === "🎁" ? <Image source={require("../../../assets/images/money/cat-cupon-free-reward.png")} style={{ width: 36, height: 36, opacity: 0.4 }} resizeMode="contain" /> : <Text style={[s.cardEmoji, { opacity: 0.4 }]}>{e}</Text>; })()}
                   <View>
                     <Text style={s.cardTitleClaimed} numberOfLines={1}>{item.title.replace(/^\S+\s*/, "")}</Text>
                     <Text style={s.cardDesc}>Réclamée ✓</Text>
@@ -270,8 +270,8 @@ const s = StyleSheet.create({
 
   topBar: { paddingTop: 72, paddingHorizontal: 20, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   pageTitle: { fontSize: 24, fontWeight: "800", color: "#0f172a" },
-  coinPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fef9c3", borderWidth: 1, borderColor: "#fbbf24", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  coinPillText: { color: "#b45309", fontWeight: "700", fontSize: 14 },
+  coinPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "white", borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  coinPillText: { color: "#1e3a5f", fontWeight: "700", fontSize: 14 },
 
   heroBanner: { marginHorizontal: 16, marginBottom: 8, backgroundColor: "#dbeafe", borderRadius: 20, paddingLeft: 20, paddingTop: 24, paddingBottom: 24, flexDirection: "row", alignItems: "center", overflow: "hidden", height: 150 },
   heroLeft: { flex: 1, gap: 6 },

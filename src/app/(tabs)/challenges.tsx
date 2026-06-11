@@ -223,8 +223,8 @@ const s = StyleSheet.create({
 
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 12 },
   pageTitle: { fontSize: 26, fontWeight: "800", color: "#0f172a" },
-  coinPill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#fef9c3", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#fde68a" },
-  coinText: { color: "#92400e", fontWeight: "700", fontSize: 14 },
+  coinPill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "white", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#e2e8f0" },
+  coinText: { color: "#1e3a5f", fontWeight: "700", fontSize: 14 },
 
   banner: { marginHorizontal: 20, marginBottom: 16, backgroundColor: "#dbeafe", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 16, flexDirection: "row", alignItems: "center", gap: 12 },
   bannerCat: { width: 64, height: 64 },
