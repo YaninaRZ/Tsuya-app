@@ -19,6 +19,7 @@ function TabsInner() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: "#3b82f6",
         tabBarInactiveTintColor: "#6b7280",
         tabBarStyle: {

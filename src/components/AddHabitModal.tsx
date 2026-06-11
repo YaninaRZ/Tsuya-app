@@ -123,7 +123,7 @@ export default function AddHabitModal() {
                   {isPublic ? "Visible dans les Challenges — d'autres peuvent la rejoindre" : "Visible uniquement par toi"}
                 </Text>
               </View>
-              <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ false: "#e5e7eb", true: "#a5b4fc" }} thumbColor={isPublic ? "#6366f1" : "#f4f4f5"} />
+              <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ false: "#e5e7eb", true: "#93c5fd" }} thumbColor={isPublic ? "#3b82f6" : "#f4f4f5"} />
             </View>
 
             {isPublic && packs.length > 0 && (
@@ -181,7 +181,7 @@ const s = StyleSheet.create({
     borderColor: "#ddd",
     alignItems: "center",
   },
-  freqActive: { backgroundColor: "#6366f1", borderColor: "#6366f1" },
+  freqActive: { backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
   freqText: { color: "#555", fontWeight: "600" },
   freqTextActive: { color: "white" },
   toggleRow: {
@@ -205,6 +205,6 @@ const s = StyleSheet.create({
   btn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
   ghost: { backgroundColor: "#f1f1f1" },
   ghostText: { color: "#555", fontWeight: "600" },
-  primary: { backgroundColor: "#6366f1" },
+  primary: { backgroundColor: "#3b82f6" },
   primaryText: { color: "white", fontWeight: "700" },
 });

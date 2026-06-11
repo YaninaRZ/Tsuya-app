@@ -1,3 +1,4 @@
+import ConfirmModal from "@/components/ConfirmModal";
 import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
 import { supabase } from "@/lib/supabase";
@@ -63,8 +64,10 @@ export default function ChallengeDetail() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [joined, setJoined] = useState(false);
+  const [hasLeft, setHasLeft] = useState(false);
   const [isOwn, setIsOwn] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -91,13 +94,12 @@ export default function ChallengeDetail() {
       );
 
       if (!own) {
-        const { data: mine } = await supabase
-          .from("habits").select("id")
-          .eq("user_id", session?.user.id)
-          .eq("source_habit_id", id)
-          .eq("is_active", true)
-          .maybeSingle();
+        const [{ data: mine }, { data: leftRow }] = await Promise.all([
+          supabase.from("habits").select("id").eq("user_id", session?.user.id).eq("source_habit_id", id).eq("is_active", true).maybeSingle(),
+          supabase.from("challenge_leaves").select("challenge_id").eq("user_id", session?.user.id).eq("challenge_id", id).maybeSingle(),
+        ]);
         setJoined(!!mine);
+        setHasLeft(!!leftRow);
       }
 
       setLoading(false);
@@ -108,6 +110,21 @@ export default function ChallengeDetail() {
   async function join() {
     if (!challenge) return;
     setJoining(true);
+
+    // Block rejoin if previously left
+    const { data: leftRow } = await supabase
+      .from("challenge_leaves").select("challenge_id")
+      .eq("user_id", session?.user.id)
+      .eq("challenge_id", challenge.id)
+      .maybeSingle();
+
+    if (leftRow) {
+      setJoining(false);
+      setHasLeft(true);
+      Alert.alert("Non autorisé", "Tu as déjà quitté ce challenge.");
+      return;
+    }
+
     const { error } = await supabase.from("habits").insert({
       user_id: session?.user.id,
       title: challenge.title,
@@ -118,30 +135,36 @@ export default function ChallengeDetail() {
       is_public: false,
       source_habit_id: challenge.id,
     });
+
     setJoining(false);
     if (error) { Alert.alert("Erreur", error.message); return; }
     setJoined(true);
-    setParticipants((prev) => [...prev, { user_id: session!.user.id, pseudo: "Toi" }]);
+    setParticipants((prev) => {
+      if (prev.some((p) => p.user_id === session!.user.id)) return prev;
+      return [...prev, { user_id: session!.user.id, pseudo: "Toi" }];
+    });
     triggerRefresh();
     Alert.alert("Challenge rejoint !", `« ${challenge.title} » est dans ta liste.`);
   }
 
   function confirmLeave() {
-    Alert.alert("Quitter le challenge ?", "Tu pourras le rejoindre à nouveau depuis les Challenges.", [
-      { text: "Annuler", style: "cancel" },
-      { text: "Quitter", style: "destructive", onPress: leave },
-    ]);
+    setShowLeaveConfirm(true);
   }
 
   async function leave() {
     if (!challenge) return;
     setJoining(true);
-    const { error } = await supabase.from("habits").delete()
-      .eq("user_id", session?.user.id)
-      .eq("source_habit_id", challenge.id);
+    // Hard delete the joined habit + record the leave so rejoin is blocked
+    const [{ error }, { error: leaveErr }] = await Promise.all([
+      supabase.from("habits").delete()
+        .eq("user_id", session?.user.id)
+        .eq("source_habit_id", challenge.id),
+      supabase.from("challenge_leaves").insert({ user_id: session?.user.id, challenge_id: challenge.id }),
+    ]);
     setJoining(false);
-    if (error) { Alert.alert("Erreur", error.message); return; }
+    if (error || leaveErr) { Alert.alert("Erreur", (error ?? leaveErr)!.message); return; }
     setJoined(false);
+    setHasLeft(true);
     setParticipants((prev) => prev.filter((p) => p.user_id !== session?.user.id));
     triggerRefresh();
   }
@@ -151,11 +174,22 @@ export default function ChallengeDetail() {
 
   if (!challenge) return null;
 
+
   const freqLabel = challenge.frequency === "daily" ? "Quotidien" : "Hebdomadaire";
   const shown = participants.slice(0, 5);
   const extra = participants.length - shown.length;
 
   return (
+    <>
+    <ConfirmModal
+      visible={showLeaveConfirm}
+      title="Quitter le challenge ?"
+      message="Tu pourras le rejoindre à nouveau depuis les Challenges."
+      confirmLabel="Quitter"
+      destructive
+      onCancel={() => setShowLeaveConfirm(false)}
+      onConfirm={() => { setShowLeaveConfirm(false); leave(); }}
+    />
     <ScrollView style={s.container} contentContainerStyle={s.content}>
       <Pressable style={s.backBtn} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={22} color="#6366f1" />
@@ -217,6 +251,11 @@ export default function ChallengeDetail() {
             <><Ionicons name="exit-outline" size={20} color="white" /><Text style={s.joinText}>Quitter ce challenge</Text></>
           )}
         </Pressable>
+      ) : hasLeft ? (
+        <View style={[s.joinBtn, s.leftBtn]}>
+          <Ionicons name="close-circle-outline" size={20} color="#6b7280" />
+          <Text style={[s.joinText, { color: "#6b7280" }]}>Challenge quitté</Text>
+        </View>
       ) : (
         <Pressable style={s.joinBtn} onPress={join} disabled={joining}>
           {joining ? <ActivityIndicator color="white" /> : (
@@ -225,6 +264,7 @@ export default function ChallengeDetail() {
         </Pressable>
       )}
     </ScrollView>
+    </>
   );
 }
 
@@ -252,6 +292,7 @@ const s = StyleSheet.create({
   sectionBody: { fontSize: 15, color: "#555", lineHeight: 22 },
   joinBtn: { backgroundColor: "#6366f1", borderRadius: 14, padding: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8 },
   leaveBtn: { backgroundColor: "#ef4444" },
+  leftBtn: { backgroundColor: "#f3f4f6" },
   joinBtnOwn: { backgroundColor: "#a855f7" },
   joinText: { color: "white", fontWeight: "700", fontSize: 16 },
 });

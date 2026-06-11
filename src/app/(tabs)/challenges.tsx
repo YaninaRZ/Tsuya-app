@@ -2,12 +2,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
+import CatCoin from "@/components/CatCoin";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -23,6 +25,7 @@ type Challenge = {
   author: { pseudo: string };
   isOwn: boolean;
   joined: boolean;
+  hasLeft: boolean;
   participants: { user_id: string; pseudo: string }[];
 };
 
@@ -45,21 +48,26 @@ export default function Challenges() {
   const { session } = useAuth();
   const { triggerRefresh } = useHabits();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [coins, setCoins] = useState(0);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState<string | null>(null);
 
   const fetchChallenges = useCallback(async () => {
     setLoading(true);
-    const [{ data: publicHabits, error }, { data: myHabits }, { data: allJoined }] = await Promise.all([
+    const [{ data: publicHabits, error }, { data: myHabits }, { data: allJoined }, { data: myLeaves }] = await Promise.all([
       supabase.from("habits")
         .select(`id, title, description, xp_reward, frequency, duration_days, user_id, author:profiles!habits_user_id_fkey(pseudo)`)
         .eq("is_public", true).eq("is_active", true).order("created_at", { ascending: false }),
       supabase.from("habits").select("source_habit_id").eq("user_id", session?.user.id).eq("is_active", true).not("source_habit_id", "is", null),
       supabase.from("habits").select(`source_habit_id, user_id, profile:profiles!habits_user_id_fkey(pseudo)`).not("source_habit_id", "is", null).eq("is_active", true),
+      supabase.from("challenge_leaves").select("challenge_id").eq("user_id", session?.user.id),
     ]);
     if (error) { Alert.alert("Erreur", error.message); setLoading(false); return; }
+    supabase.from("profiles").select("coins").eq("id", session?.user.id).single()
+      .then(({ data: p }) => { if (p) setCoins(p.coins); });
 
     const myJoined = new Set((myHabits ?? []).map((h) => h.source_habit_id));
+    const myLeftSet = new Set((myLeaves ?? []).map((l) => l.challenge_id));
     const participantsByHabit: Record<string, { user_id: string; pseudo: string }[]> = {};
     for (const row of (allJoined ?? []) as any[]) {
       if (!participantsByHabit[row.source_habit_id]) participantsByHabit[row.source_habit_id] = [];
@@ -70,6 +78,7 @@ export default function Challenges() {
       author: h.author ?? { pseudo: "?" },
       isOwn: h.user_id === session?.user.id,
       joined: myJoined.has(h.id),
+      hasLeft: myLeftSet.has(h.id),
       participants: participantsByHabit[h.id] ?? [],
     })));
     setLoading(false);
@@ -101,13 +110,33 @@ export default function Challenges() {
 
   return (
     <View style={s.container}>
-      <Text style={s.pageTitle}>Challenges</Text>
-      <Text style={s.pageSub}>Habitudes publiques de la communauté</Text>
+
+      {/* Header */}
+      <View style={s.header}>
+        <Text style={s.pageTitle}>Challenges</Text>
+        <View style={s.coinPill}>
+          <CatCoin size={28} style={{ marginVertical: -4 }} />
+          <Text style={s.coinText}>{coins}</Text>
+        </View>
+      </View>
+
+      {/* Hero banner */}
+      <View style={s.banner}>
+        <Image
+          source={require("../../../assets/images/small-cat.png")}
+          style={s.bannerCat}
+          resizeMode="contain"
+        />
+        <View style={s.bannerText}>
+          <Text style={s.bannerTitle}>Relève un défi,{"\n"}dépasse tes limites !</Text>
+          <Text style={s.bannerSub}>Rejoins un challenge et gagne des récompenses</Text>
+        </View>
+      </View>
 
       <FlatList
         data={challenges}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 40, gap: 10 }}
+        contentContainerStyle={{ paddingBottom: 40, gap: 10, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={s.emptyWrap}>
@@ -139,44 +168,49 @@ export default function Challenges() {
                   ) : null}
                 </View>
 
-                <View style={s.cardBottom}>
-                  {/* Participants */}
-                  {item.participants.length > 0 && (
-                    <View style={s.partRow}>
-                      {item.participants.slice(0, 4).map((p, i) => (
-                        <View key={p.user_id} style={{ marginLeft: i === 0 ? 0 : -7, zIndex: 4 - i }}>
-                          <Avatar pseudo={p.pseudo} size={22} />
-                        </View>
-                      ))}
-                      <Text style={s.partCount}>{item.participants.length}</Text>
-                    </View>
-                  )}
-
-                  {/* Status chip */}
-                  <View style={[s.statusChip,
-                    item.isOwn ? s.chipOwn : item.joined ? s.chipJoined : s.chipJoin
-                  ]}>
-                    <Text style={[s.statusText,
-                      item.isOwn ? { color: "#7c3aed" } : item.joined ? { color: "#1d4ed8" } : { color: "#64748b" }
-                    ]}>
-                      {item.isOwn ? "Mon challenge" : item.joined ? "Rejoint ✓" : "Rejoindre"}
-                    </Text>
+                {/* Participants */}
+                {item.participants.length > 0 && (
+                  <View style={s.partRow}>
+                    {item.participants.slice(0, 4).map((p, i) => (
+                      <View key={p.user_id} style={{ marginLeft: i === 0 ? 0 : -7, zIndex: 4 - i }}>
+                        <Avatar pseudo={p.pseudo} size={22} />
+                      </View>
+                    ))}
+                    <Text style={s.partCount}>{item.participants.length} participant{item.participants.length > 1 ? "s" : ""}</Text>
                   </View>
-                </View>
-              </View>
+                )}
 
-              {/* Join button overlay — only for non-joined */}
-              {!item.isOwn && !item.joined && (
-                <Pressable
-                  style={s.joinBtn}
-                  onPress={() => join(item)}
-                  disabled={joining === item.id}
-                >
-                  {joining === item.id
-                    ? <ActivityIndicator color="white" size="small" />
-                    : <Ionicons name="add" size={20} color="white" />}
-                </Pressable>
-              )}
+                {/* Bottom button */}
+                {item.isOwn ? (
+                  <View style={[s.actionBtn, s.btnOwn]}>
+                    <Ionicons name="person" size={15} color="#7c3aed" />
+                    <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>Mon challenge</Text>
+                  </View>
+                ) : item.joined ? (
+                  <View style={[s.actionBtn, s.btnJoined]}>
+                    <Ionicons name="checkmark-circle" size={15} color="#1d4ed8" />
+                    <Text style={[s.actionBtnText, { color: "#1d4ed8" }]}>Rejoint ✓</Text>
+                  </View>
+                ) : item.hasLeft ? (
+                  <View style={[s.actionBtn, s.btnLeft]}>
+                    <Ionicons name="close-circle-outline" size={15} color="#9ca3af" />
+                    <Text style={[s.actionBtnText, { color: "#9ca3af" }]}>Challenge quitté</Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={[s.actionBtn, s.btnJoin]}
+                    onPress={() => join(item)}
+                    disabled={joining === item.id}
+                  >
+                    {joining === item.id
+                      ? <ActivityIndicator color="white" size="small" />
+                      : <>
+                          <Ionicons name="add-circle-outline" size={15} color="white" />
+                          <Text style={[s.actionBtnText, { color: "white" }]}>Rejoindre</Text>
+                        </>}
+                  </Pressable>
+                )}
+              </View>
             </Pressable>
           );
         }}
@@ -186,10 +220,20 @@ export default function Challenges() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#ffffff", paddingHorizontal: 20, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: "#ffffff", paddingTop: 72 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 12 },
   pageTitle: { fontSize: 26, fontWeight: "800", color: "#0f172a" },
-  pageSub: { color: "#94a3b8", fontSize: 13, fontWeight: "500", marginBottom: 20, marginTop: 2 },
+  coinPill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#fef9c3", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#fde68a" },
+  coinText: { color: "#92400e", fontWeight: "700", fontSize: 14 },
+
+  banner: { marginHorizontal: 20, marginBottom: 16, backgroundColor: "#dbeafe", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  bannerCat: { width: 64, height: 64 },
+  bannerText: { flex: 1, gap: 4 },
+  bannerTitle: { fontSize: 15, fontWeight: "800", color: "#1e3a5f", lineHeight: 21 },
+  bannerSub: { fontSize: 11, color: "#3b82f6", fontWeight: "500" },
+
   emptyWrap: { alignItems: "center", marginTop: 60, gap: 14 },
   emptyText: { textAlign: "center", color: "#94a3b8", lineHeight: 22, fontSize: 14 },
 
@@ -214,18 +258,15 @@ const s = StyleSheet.create({
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 2 },
   metaChip: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#f8fafc", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   metaText: { fontSize: 11, color: "#64748b", fontWeight: "600" },
-  cardBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
-  partRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  partRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   partCount: { fontSize: 11, color: "#94a3b8", fontWeight: "600", marginLeft: 4 },
-  statusChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  chipJoin: { backgroundColor: "#f1f5f9" },
-  chipJoined: { backgroundColor: "#dbeafe" },
-  chipOwn: { backgroundColor: "#ede9fe" },
-  statusText: { fontSize: 12, fontWeight: "700" },
-  joinBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "#3b82f6",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#3b82f6", shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+  actionBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, marginTop: 10, paddingVertical: 11, borderRadius: 12,
   },
+  actionBtnText: { fontSize: 14, fontWeight: "700" },
+  btnJoin: { backgroundColor: "#3b82f6" },
+  btnJoined: { backgroundColor: "#dbeafe" },
+  btnLeft: { backgroundColor: "#f3f4f6" },
+  btnOwn: { backgroundColor: "#ede9fe" },
 });

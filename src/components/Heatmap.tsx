@@ -1,10 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 
-const WEEKS = 16;
-const CELL = 13;
+const WEEKS = 9;
+const CELL = 34;
 const GAP = 3;
 
 function key(d: Date) {
@@ -14,7 +14,7 @@ function key(d: Date) {
 function buildColumns() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const dow = (today.getDay() + 6) % 7; // lundi = 0
+  const dow = (today.getDay() + 6) % 7;
   const start = new Date(today);
   start.setDate(today.getDate() - dow - (WEEKS - 1) * 7);
   const cols: Date[][] = [];
@@ -30,36 +30,22 @@ function buildColumns() {
   return cols;
 }
 
-function colorFor(count: number) {
-  if (count <= 0) return "#ebedf0";
-  if (count === 1) return "#c6e48b";
-  if (count <= 3) return "#7bc96f";
-  if (count <= 5) return "#239a3b";
-  return "#196127";
-}
-
 export default function Heatmap() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const todayKey = key(new Date());
 
   const fetchLogs = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("habit_logs")
-      .select("completed_on");
+    const { data, error } = await supabase.from("habit_logs").select("completed_on");
     if (error || !data) return;
     const c: Record<string, number> = {};
     for (const row of data) {
-      const k = row.completed_on as string; // "YYYY-MM-DD"
+      const k = row.completed_on as string;
       c[k] = (c[k] ?? 0) + 1;
     }
     setCounts(c);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchLogs();
-    }, [fetchLogs]),
-  );
+  useFocusEffect(useCallback(() => { fetchLogs(); }, [fetchLogs]));
 
   const columns = buildColumns();
 
@@ -72,39 +58,70 @@ export default function Heatmap() {
             {col.map((d) => {
               const k = key(d);
               const future = k > todayKey;
+              const isToday = k === todayKey;
+              const count = counts[k] ?? 0;
+              const done = !future && count > 0;
+
               return (
-                <View
-                  key={k}
-                  style={[
-                    s.cell,
-                    {
-                      backgroundColor: future
-                        ? "transparent"
-                        : colorFor(counts[k] ?? 0),
-                    },
-                  ]}
-                />
+                <View key={k} style={s.cell}>
+                  {done && (
+                    <Image
+                      source={require("../../assets/images/star.png")}
+                      style={s.starBg}
+                      resizeMode="contain"
+                    />
+                  )}
+                  <Text style={[
+                    s.dayNum,
+                    future && s.dayFuture,
+                    done && s.dayDone,
+                    isToday && s.dayToday,
+                  ]}>
+                    {d.getDate()}
+                  </Text>
+                </View>
               );
+
             })}
           </View>
         ))}
-      </View>
-      <View style={s.legend}>
-        <Text style={s.legendText}>Moins</Text>
-        {[0, 1, 3, 5, 6].map((n, i) => (
-          <View key={i} style={[s.cell, { backgroundColor: colorFor(n) }]} />
-        ))}
-        <Text style={s.legendText}>Plus</Text>
       </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  wrap: { width: "100%", gap: 10, marginVertical: 24 },
+  wrap: { width: "100%", gap: 10, marginVertical: 16 },
   title: { fontSize: 16, fontWeight: "700" },
   grid: { flexDirection: "row", gap: GAP },
-  cell: { width: CELL, height: CELL, borderRadius: 3 },
-  legend: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  legendText: { fontSize: 11, color: "#888" },
+  cell: {
+    width: CELL,
+    height: CELL,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  starBg: {
+    position: "absolute",
+    width: CELL + 76,
+    height: CELL + 76,
+    opacity: 0.85,
+  },
+  dayNum: {
+    position: "absolute",
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#94a3b8",
+  },
+  dayDone: {
+    color: "#1e3a5f",
+    fontWeight: "900",
+    fontSize: 13,
+  },
+  dayFuture: {
+    color: "#d1d5db",
+  },
+  dayToday: {
+    color: "#3b82f6",
+    fontWeight: "900",
+  },
 });

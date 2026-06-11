@@ -1,12 +1,16 @@
 import BadgeModal from "@/components/BadgeModal";
+import LevelUpModal from "@/components/LevelUpModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import LootModal from "@/components/LootModal";
+import StreakModal from "@/components/StreakModal";
 import WeekStrip from "@/components/WeekStrip";
 import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
+import CatCoin from "@/components/CatCoin";
 
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -31,6 +35,7 @@ type Habit = {
   is_public: boolean;
   source_habit_id: string | null;
   packInfo?: PackInfo | null;
+  completionCount?: number;
 };
 type Profile = { level: number; coins: number };
 
@@ -86,6 +91,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [earnedBadge, setEarnedBadge] = useState<{ key: string; level: number } | null>(null);
   const [loot, setLoot] = useState<{ label: string; type: "xp_boost" | "coins_bonus" | "free_reward"; value: number | null } | null>(null);
+  const [pendingLevelUp, setPendingLevelUp] = useState<{ level: number; coins_gained: number; badge_key?: string } | null>(null);
+  const [levelUpModal, setLevelUpModal] = useState<{ level: number; coins: number } | null>(null);
+  const [streakOpen, setStreakOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<Habit | null>(null);
+  const [hasRewards, setHasRewards] = useState(true);
 
   const isToday = selectedDate === dKey(new Date());
 
@@ -102,15 +112,32 @@ export default function Home() {
     const habits: Habit[] = data ?? [];
     const sourceIds = habits.filter((h) => h.source_habit_id).map((h) => h.source_habit_id as string);
 
-    if (sourceIds.length > 0) {
-      const { data: sources } = await supabase
-        .from("habits").select("id, pack:reward_packs(name, difficulty)").in("id", sourceIds);
-      const packMap: Record<string, PackInfo> = {};
-      for (const s of (sources ?? []) as any[]) { if (s.pack) packMap[s.id] = s.pack; }
-      setHabits(habits.map((h) => h.source_habit_id ? { ...h, packInfo: packMap[h.source_habit_id] ?? null } : h));
-    } else {
-      setHabits(habits);
+    // Fetch pack info and completion counts for joined challenges
+    const joinedHabits = habits.filter((h) => h.source_habit_id);
+    const habitsWithDuration = habits.filter((h) => h.source_habit_id && h.duration_days);
+
+    const [sourcesRes, countsRes] = await Promise.all([
+      sourceIds.length > 0
+        ? supabase.from("habits").select("id, pack:reward_packs(name, difficulty)").in("id", sourceIds)
+        : Promise.resolve({ data: [] }),
+      habitsWithDuration.length > 0
+        ? supabase.from("habit_logs").select("habit_id").in("habit_id", habitsWithDuration.map((h) => h.id))
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const packMap: Record<string, PackInfo> = {};
+    for (const s of (sourcesRes.data ?? []) as any[]) { if (s.pack) packMap[s.id] = s.pack; }
+
+    const countMap: Record<string, number> = {};
+    for (const log of (countsRes.data ?? []) as any[]) {
+      countMap[log.habit_id] = (countMap[log.habit_id] ?? 0) + 1;
     }
+
+    setHabits(habits.map((h) => ({
+      ...h,
+      packInfo: h.source_habit_id ? (packMap[h.source_habit_id] ?? null) : undefined,
+      completionCount: h.duration_days ? (countMap[h.id] ?? 0) : undefined,
+    })));
     setLoading(false);
   }, [session]);
 
@@ -132,7 +159,11 @@ export default function Home() {
 
   useFocusEffect(useCallback(() => {
     fetchHabits(selectedDate); fetchProfile(); fetchStreak();
-  }, [fetchHabits, fetchProfile, fetchStreak, selectedDate]));
+    supabase.rpc("check_badges", { p_user_id: session?.user.id }).then(({ data }) => {
+      const newBadges: string[] = data?.new_badges ?? [];
+      if (newBadges.length > 0) setEarnedBadge({ key: newBadges[0], level: 0 });
+    });
+  }, [fetchHabits, fetchProfile, fetchStreak, selectedDate, session]));
 
   useEffect(() => {
     fetchHabits(selectedDate); fetchProfile(); fetchStreak();
@@ -150,27 +181,58 @@ export default function Home() {
       Alert.alert("Oups", error.message); return;
     }
     fetchProfile(); fetchStreak();
+
+    // Update local completion count
+    setHabits((prev) => prev.map((h) =>
+      h.id === habit.id && h.duration_days
+        ? { ...h, completionCount: (h.completionCount ?? 0) + 1 }
+        : h
+    ));
+
+    if (data?.challenge_complete) {
+      // Remove from list — challenge fully completed
+      setHabits((prev) => prev.filter((h) => h.id !== habit.id));
+    }
+
+    // Check achievement badges after each completion
+    const { data: badgeData } = await supabase.rpc("check_badges", { p_user_id: session?.user.id });
+    const newBadges: string[] = badgeData?.new_badges ?? [];
+    if (newBadges.length > 0) {
+      setEarnedBadge({ key: newBadges[0], level: 0 });
+      return;
+    }
+
     if (data?.loot_label) {
+      setPendingLevelUp(data.leveled_up ? data : null);
+      if (data.loot_type === "free_reward") {
+        const { count } = await supabase.from("rewards").select("id", { count: "exact", head: true }).eq("user_id", session?.user.id).eq("is_claimed", false);
+        setHasRewards((count ?? 0) > 0);
+      }
       setLoot({ label: data.loot_label, type: data.loot_type, value: data.loot_value });
     } else if (data?.leveled_up) {
       if (data.badge_key) setEarnedBadge({ key: data.badge_key, level: data.level });
-      else Alert.alert("Niveau supérieur ! 🎉", `Niveau ${data.level} · +${data.coins_gained} coins`);
+      else setLevelUpModal({ level: data.level, coins: data.coins_gained });
     }
   }
 
   function confirmRemove(habit: Habit) {
-    const isJoined = !!habit.source_habit_id;
-    Alert.alert(
-      isJoined ? "Quitter le challenge ?" : "Supprimer ?",
-      isJoined ? `Quitter « ${habit.title} » ? Tu pourras le rejoindre depuis les Challenges.` : `Supprimer « ${habit.title} » ?`,
-      [{ text: "Annuler", style: "cancel" }, { text: isJoined ? "Quitter" : "Supprimer", style: "destructive", onPress: () => removeHabit(habit.id) }],
-    );
+    setConfirmTarget(habit);
   }
 
-  async function removeHabit(id: string) {
-    const { error } = await supabase.from("habits").delete().eq("id", id);
+  async function removeHabit(habit: Habit) {
+    let error: any;
+    if (habit.source_habit_id) {
+      // Leave challenge: hard delete + record leave so rejoin is blocked
+      const [{ error: delErr }, { error: leaveErr }] = await Promise.all([
+        supabase.from("habits").delete().eq("id", habit.id),
+        supabase.from("challenge_leaves").insert({ user_id: session?.user.id, challenge_id: habit.source_habit_id }),
+      ]);
+      error = delErr ?? leaveErr;
+    } else {
+      ({ error } = await supabase.from("habits").delete().eq("id", habit.id));
+    }
     if (error) { Alert.alert("Erreur", error.message); return; }
-    setHabits((prev) => prev.filter((h) => h.id !== id));
+    setHabits((prev) => prev.filter((h) => h.id !== habit.id));
   }
 
   function renderLeftActions(habit: Habit) {
@@ -202,19 +264,16 @@ export default function Home() {
     <View style={s.container}>
       {/* Top bar */}
       <View style={s.topBar}>
-        <View style={s.levelBadge}>
-          <Ionicons name="star" size={13} color="#7c6ee6" />
-          <Text style={s.levelText}>Niveau {level}</Text>
-        </View>
+        <Text style={s.pageTitle}>Mes habitudes</Text>
         <View style={s.topRight}>
           <View style={s.coinPill}>
-            <Ionicons name="cash-outline" size={14} color="#ca8a04" />
+            <CatCoin size={28} style={{ marginVertical: -4 }} />
             <Text style={s.coinText}>{coins}</Text>
           </View>
-          <View style={s.flamePill}>
+          <Pressable style={s.flamePill} onPress={() => setStreakOpen(true)}>
             <Ionicons name="flame" size={15} color="#f97316" />
             <Text style={s.flameText}>{streak}</Text>
-          </View>
+          </Pressable>
         </View>
       </View>
 
@@ -224,12 +283,7 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
         ListHeaderComponent={
-          <>
-            <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
-            <Text style={s.sectionTitle}>
-              {isToday ? "Mes habitudes" : selectedDate.split("-").reverse().join("/")}
-            </Text>
-          </>
+          <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
         }
         ListEmptyComponent={
           <View style={s.emptyWrap}>
@@ -278,7 +332,14 @@ export default function Home() {
                       <Ionicons name="flash" size={11} color="#6366f1" />
                       <Text style={[s.metaText, { color: "#6366f1" }]}>+{item.xp_reward} XP</Text>
                     </View>
-                    {item.duration_days ? (
+                    {item.duration_days && item.source_habit_id ? (
+                      <View style={[s.metaChip, { backgroundColor: "#dbeafe" }]}>
+                        <Ionicons name="calendar-outline" size={11} color="#3b82f6" />
+                        <Text style={[s.metaText, { color: "#3b82f6" }]}>
+                          {item.completionCount ?? 0}/{item.duration_days}j
+                        </Text>
+                      </View>
+                    ) : item.duration_days ? (
                       <View style={s.metaChip}>
                         <Ionicons name="calendar-outline" size={11} color="#6b7280" />
                         <Text style={s.metaText}>{item.duration_days}j</Text>
@@ -305,20 +366,52 @@ export default function Home() {
         }}
       />
 
+      <StreakModal visible={streakOpen} onClose={() => setStreakOpen(false)} />
+      <ConfirmModal
+        visible={!!confirmTarget}
+        title={confirmTarget?.source_habit_id ? "Quitter le challenge ?" : "Supprimer ?"}
+        message={confirmTarget?.source_habit_id
+          ? `Tu pourras rejoindre « ${confirmTarget?.title} » depuis les Challenges.`
+          : `Supprimer « ${confirmTarget?.title} » définitivement ?`}
+        confirmLabel={confirmTarget?.source_habit_id ? "Quitter" : "Supprimer"}
+        destructive
+        onCancel={() => setConfirmTarget(null)}
+        onConfirm={() => { if (confirmTarget) removeHabit(confirmTarget); setConfirmTarget(null); }}
+      />
       <BadgeModal badgeKey={earnedBadge?.key ?? null} level={earnedBadge?.level ?? 0} onClose={() => setEarnedBadge(null)} />
-      <LootModal loot={loot} onClose={() => setLoot(null)} />
+      <LevelUpModal visible={!!levelUpModal} level={levelUpModal?.level ?? 1} coinsGained={levelUpModal?.coins ?? 0} onClose={() => { setLevelUpModal(null); fetchProfile(); }} />
+      <LootModal loot={loot} hasRewards={hasRewards} onGoToShop={() => router.push("/(tabs)/shop")} onClose={async () => {
+        setLoot(null);
+        fetchProfile();
+        if (pendingLevelUp) {
+          const lu = pendingLevelUp;
+          setPendingLevelUp(null);
+          // RPC may not return badge_key in the loot path — check DB directly
+          let badgeKey = lu.badge_key ?? null;
+          if (!badgeKey) {
+            const { data: badges } = await supabase
+              .from("user_badges")
+              .select("badge_key")
+              .eq("user_id", session?.user.id)
+              .eq("level", lu.level)
+              .limit(1);
+            badgeKey = badges?.[0]?.badge_key ?? null;
+          }
+          if (badgeKey) setEarnedBadge({ key: badgeKey, level: lu.level });
+          else setLevelUpModal({ level: lu.level, coins: lu.coins_gained });
+        }
+      }} />
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#ffffff", paddingHorizontal: 18, paddingTop: 58 },
+  container: { flex: 1, backgroundColor: "#ffffff", paddingHorizontal: 18, paddingTop: 72 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   // Top bar
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  levelBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#ede9fe", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  levelText: { color: "#7c3aed", fontWeight: "700", fontSize: 14 },
+  pageTitle: { fontSize: 26, fontWeight: "800", color: "#0f172a" },
   topRight: { flexDirection: "row", gap: 8 },
   coinPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#fef9c3", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
   coinText: { color: "#b45309", fontWeight: "700", fontSize: 14 },

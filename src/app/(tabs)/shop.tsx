@@ -1,11 +1,13 @@
+import ConfirmModal from "@/components/ConfirmModal";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import CatCoin from "@/components/CatCoin";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
-  FlatList,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -14,6 +16,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
+import Svg, { Circle } from "react-native-svg";
 
 type Reward = {
   id: string;
@@ -25,6 +29,29 @@ type Reward = {
 
 const ICONS = ["🎬", "🍕", "✈️", "🎮", "🛍️", "🍫", "🎵", "📚", "🏖️", "🍷", "🎁", "💆"];
 
+function CoinArc({ cost, canAfford, size = 56 }: { cost: number; canAfford: boolean; size?: number }) {
+  const sw = 4;
+  const r = (size - sw * 2) / 2;
+  const cx = size / 2; const cy = size / 2;
+  const full = 2 * Math.PI * r;
+  const arc = full * 0.8;
+  const color = canAfford ? "#3b82f6" : "#cbd5e1";
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <Svg width={size} height={size} style={{ position: "absolute", transform: [{ rotate: "126deg" }] }}>
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth={sw}
+          strokeDasharray={`${arc} ${full}`} strokeLinecap="round" />
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
+          strokeDasharray={`${arc} ${full}`} strokeLinecap="round" />
+      </Svg>
+      <View style={{ alignItems: "center" }}>
+        <Text style={{ fontSize: 14, fontWeight: "800", color: canAfford ? "#1e40af" : "#94a3b8" }}>{cost}</Text>
+        <Text style={{ fontSize: 9, color: "#94a3b8", fontWeight: "600", marginTop: -2 }}>coins</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function Shop() {
   const { session } = useAuth();
   const [rewards, setRewards] = useState<Reward[]>([]);
@@ -32,24 +59,17 @@ export default function Shop() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingReward, setEditingReward] = useState<Reward | null>(null);
   const [selectedIcon, setSelectedIcon] = useState(ICONS[0]);
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [cost, setCost] = useState("50");
   const [saving, setSaving] = useState(false);
+  const [buyTarget, setBuyTarget] = useState<Reward | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Reward | null>(null);
 
   const fetchData = useCallback(async () => {
     const [{ data: rewardsData }, { data: profile }] = await Promise.all([
-      supabase
-        .from("rewards")
-        .select("id, title, description, cost, is_claimed")
-        .eq("user_id", session?.user.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("profiles")
-        .select("coins")
-        .eq("id", session?.user.id)
-        .single(),
+      supabase.from("rewards").select("id, title, description, cost, is_claimed").eq("user_id", session?.user.id).order("created_at", { ascending: false }),
+      supabase.from("profiles").select("coins").eq("id", session?.user.id).single(),
     ]);
     setRewards(rewardsData ?? []);
     setCoins(profile?.coins ?? 0);
@@ -58,86 +78,42 @@ export default function Shop() {
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
   function openCreate() {
-    setEditingReward(null);
-    setTitle("");
-    setDescription("");
-    setCost("50");
-    setSelectedIcon(ICONS[0]);
-    setModalOpen(true);
+    setEditingReward(null); setTitle(""); setDescription(""); setCost("50"); setSelectedIcon(ICONS[0]); setModalOpen(true);
   }
 
   function openEdit(reward: Reward) {
-    setEditingReward(reward);
-    setTitle(reward.title);
-    setDescription(reward.description ?? "");
-    setCost(String(reward.cost));
-    setSelectedIcon(ICONS[0]);
-    setModalOpen(true);
+    setEditingReward(reward); setTitle(reward.title.replace(/^\S+\s*/, "")); setDescription(reward.description ?? ""); setCost(String(reward.cost)); setSelectedIcon(ICONS[0]); setModalOpen(true);
   }
 
   async function save() {
     if (!title.trim()) { Alert.alert("Oups", "Donne un nom à ta récompense."); return; }
     const parsedCost = parseInt(cost) || 10;
-    if (parsedCost <= 0) { Alert.alert("Oups", "Le prix doit être supérieur à 0."); return; }
     setSaving(true);
-
-    const payload = {
-      title: `${selectedIcon} ${title.trim()}`,
-      description: description.trim() || null,
-      cost: parsedCost,
-    };
-
+    const payload = { title: `${selectedIcon} ${title.trim()}`, description: description.trim() || null, cost: parsedCost };
     let error;
     if (editingReward) {
       ({ error } = await supabase.from("rewards").update(payload).eq("id", editingReward.id));
     } else {
       ({ error } = await supabase.from("rewards").insert({ ...payload, user_id: session?.user.id }));
     }
-
     setSaving(false);
     if (error) { Alert.alert("Erreur", error.message); return; }
-    setModalOpen(false);
+    setModalOpen(false); fetchData();
+  }
+
+  async function confirmBuy() {
+    if (!buyTarget) return;
+    const { error } = await supabase.rpc("claim_reward", { p_reward_id: buyTarget.id });
+    setBuyTarget(null);
+    if (error) { Alert.alert("Erreur", error.message); return; }
     fetchData();
   }
 
-  async function buy(reward: Reward) {
-    if (reward.is_claimed) return;
-    if (coins < reward.cost) {
-      Alert.alert(
-        "Pas assez de coins 😢",
-        `Il te faut ${reward.cost} coins.\nTu en as ${coins} — continue tes habitudes !`,
-      );
-      return;
-    }
-    Alert.alert(
-      "Acheter ?",
-      `Dépenser ${reward.cost} coins pour « ${reward.title} » ?`,
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Confirmer",
-          onPress: async () => {
-            const { error } = await supabase.rpc("claim_reward", { p_reward_id: reward.id });
-            if (error) { Alert.alert("Erreur", error.message); return; }
-            fetchData();
-          },
-        },
-      ],
-    );
-  }
-
-  async function deleteReward(id: string) {
-    Alert.alert("Supprimer ?", "Supprimer cette récompense ?", [
-      { text: "Annuler", style: "cancel" },
-      {
-        text: "Supprimer",
-        style: "destructive",
-        onPress: async () => {
-          await supabase.from("rewards").delete().eq("id", id);
-          setRewards((prev) => prev.filter((r) => r.id !== id));
-        },
-      },
-    ]);
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    await supabase.from("rewards").delete().eq("id", deleteTarget.id);
+    setRewards((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+    setDeleteTarget(null);
   }
 
   const available = rewards.filter((r) => !r.is_claimed);
@@ -145,15 +121,43 @@ export default function Shop() {
 
   return (
     <View style={s.screen}>
+      <ConfirmModal
+        visible={!!buyTarget}
+        title="Acheter cette récompense ?"
+        message={buyTarget ? `Dépenser ${buyTarget.cost} coins pour « ${buyTarget.title.replace(/^\S+\s*/, "")} » ?` : ""}
+        confirmLabel="Confirmer"
+        onConfirm={confirmBuy}
+        onCancel={() => setBuyTarget(null)}
+      />
+      <ConfirmModal
+        visible={!!deleteTarget}
+        title="Supprimer ?"
+        message="Cette récompense sera définitivement supprimée."
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
       {/* Top bar */}
       <View style={s.topBar}>
+        <Text style={s.pageTitle}>Récompenses</Text>
         <View style={s.coinPill}>
-          <FontAwesome5 name="coins" size={14} color="#fbbf24" />
+          <CatCoin size={28} style={{ marginVertical: -4 }} />
           <Text style={s.coinPillText}>{coins}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Hero banner */}
+        <View style={s.heroBanner}>
+          <View style={s.heroLeft}>
+            <Text style={s.heroTitle}>Tes efforts méritent{"\n"}une récompense ! 🎉</Text>
+            <Text style={s.heroSub}>Dépense tes coins pour te faire plaisir</Text>
+          </View>
+          <Image source={require("../../../assets/images/happy-tsuya.png")} style={s.heroImg} resizeMode="contain" pointerEvents="none" />
+        </View>
+
         {/* Section header */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionLabel}>MES RÉCOMPENSES</Text>
@@ -172,72 +176,56 @@ export default function Shop() {
         {available.map((item) => {
           const canAfford = coins >= item.cost;
           return (
-            <Pressable
+            <Swipeable
               key={item.id}
-              style={[s.card, !canAfford && s.cardDimmed]}
-              onLongPress={() => openEdit(item)}
+              overshootRight={false}
+              renderRightActions={() => (
+                <Pressable style={s.deleteBox} onPress={() => setDeleteTarget(item)}>
+                  <Ionicons name="trash" size={22} color="white" />
+                  <Text style={s.deleteLabel}>Supprimer</Text>
+                </Pressable>
+              )}
             >
-              {/* Icon */}
-              <View style={s.cardIcon}>
-                <Text style={s.cardIconText}>{item.title.match(/^\S+/)?.[0] ?? "🎁"}</Text>
-              </View>
-
-              {/* Info */}
-              <View style={s.cardInfo}>
-                <Text style={s.cardTitle} numberOfLines={1}>
-                  {item.title.replace(/^\S+\s*/, "")}
-                </Text>
-                {item.description ? (
-                  <Text style={s.cardDesc} numberOfLines={1}>{item.description}</Text>
-                ) : null}
-              </View>
-
-              {/* Right: cost + buy */}
-              <View style={s.cardRight}>
-                <View style={s.costRow}>
-                  <FontAwesome5 name="coins" size={11} color="#fbbf24" />
-                  <Text style={s.costText}>{item.cost}</Text>
+              <Pressable style={s.card} onPress={() => setBuyTarget(item)} onLongPress={() => openEdit(item)}>
+                <View style={s.cardLeft}>
+                  <Text style={s.cardEmoji}>{item.title.match(/^\S+/)?.[0] ?? "🎁"}</Text>
+                  <View>
+                    <Text style={s.cardTitle} numberOfLines={1}>{item.title.replace(/^\S+\s*/, "")}</Text>
+                    {item.description
+                      ? <Text style={s.cardDesc} numberOfLines={1}>{item.description}</Text>
+                      : <Text style={s.cardDesc}>{canAfford ? "Tu peux l'acheter !" : `Il te manque ${item.cost - coins} coins`}</Text>
+                    }
+                  </View>
                 </View>
-                <Pressable
-                  style={[s.buyBtn, !canAfford && s.buyBtnDisabled]}
-                  onPress={() => buy(item)}
-                >
-                  <Text style={[s.buyBtnText, !canAfford && s.buyBtnTextDisabled]}>
-                    Acheter
-                  </Text>
-                </Pressable>
-                <Pressable onPress={() => deleteReward(item.id)} hitSlop={8}>
-                  <Ionicons name="trash-outline" size={14} color="#4a3a6a" />
-                </Pressable>
-              </View>
-            </Pressable>
+                <CoinArc cost={item.cost} canAfford={canAfford} />
+              </Pressable>
+            </Swipeable>
           );
         })}
 
         {/* Claimed section */}
         {claimed.length > 0 && (
-          <View style={{ marginTop: 20 }}>
+          <>
             <View style={s.divider} />
             <View style={s.sectionHeader}>
-              <Text style={s.sectionLabel}>RÉCLAMÉES</Text>
+              <Text style={s.sectionLabel}>OBTENUES</Text>
             </View>
             {claimed.map((item) => (
               <View key={item.id} style={[s.card, s.cardClaimed]}>
-                <View style={[s.cardIcon, s.cardIconClaimed]}>
-                  <Text style={s.cardIconText}>{item.title.match(/^\S+/)?.[0] ?? "🎁"}</Text>
+                <View style={s.cardLeft}>
+                  <Text style={[s.cardEmoji, { opacity: 0.4 }]}>{item.title.match(/^\S+/)?.[0] ?? "🎁"}</Text>
+                  <View>
+                    <Text style={s.cardTitleClaimed} numberOfLines={1}>{item.title.replace(/^\S+\s*/, "")}</Text>
+                    <Text style={s.cardDesc}>Réclamée ✓</Text>
+                  </View>
                 </View>
-                <View style={s.cardInfo}>
-                  <Text style={s.cardTitleClaimed} numberOfLines={1}>
-                    {item.title.replace(/^\S+\s*/, "")}
-                  </Text>
-                </View>
-                <View style={s.costRow}>
-                  <FontAwesome5 name="coins" size={11} color="#4a3a6a" />
-                  <Text style={s.costTextClaimed}>{item.cost}</Text>
+                <View style={s.costPill}>
+                  <CatCoin size={20} style={{ marginVertical: -3 }} />
+                  <Text style={s.costPillText}>{item.cost}</Text>
                 </View>
               </View>
             ))}
-          </View>
+          </>
         )}
       </ScrollView>
 
@@ -245,48 +233,22 @@ export default function Shop() {
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
         <View style={s.modalBg}>
           <View style={s.modalBox}>
-            <Text style={s.modalTitle}>
-              {editingReward ? "Modifier" : "Nouvelle récompense"}
-            </Text>
+            <Text style={s.modalTitle}>{editingReward ? "Modifier" : "Nouvelle récompense"}</Text>
 
-            {/* Sélecteur d'icône */}
             <Text style={s.modalLabel}>Icône</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={s.iconRow}>
                 {ICONS.map((icon) => (
-                  <Pressable
-                    key={icon}
-                    style={[s.iconOption, selectedIcon === icon && s.iconOptionActive]}
-                    onPress={() => setSelectedIcon(icon)}
-                  >
+                  <Pressable key={icon} style={[s.iconOption, selectedIcon === icon && s.iconOptionActive]} onPress={() => setSelectedIcon(icon)}>
                     <Text style={s.iconOptionText}>{icon}</Text>
                   </Pressable>
                 ))}
               </View>
             </ScrollView>
 
-            <TextInput
-              style={s.input}
-              placeholder="Nom (ex: Séance ciné)"
-              placeholderTextColor="#6b5a8a"
-              value={title}
-              onChangeText={setTitle}
-            />
-            <TextInput
-              style={s.input}
-              placeholder="Description (optionnel)"
-              placeholderTextColor="#6b5a8a"
-              value={description}
-              onChangeText={setDescription}
-            />
-            <TextInput
-              style={s.input}
-              placeholder="Prix en coins"
-              placeholderTextColor="#6b5a8a"
-              keyboardType="number-pad"
-              value={cost}
-              onChangeText={setCost}
-            />
+            <TextInput style={s.input} placeholder="Nom (ex: Séance ciné)" value={title} onChangeText={setTitle} />
+            <TextInput style={s.input} placeholder="Description (optionnel)" value={description} onChangeText={setDescription} />
+            <TextInput style={s.input} placeholder="Prix en coins" keyboardType="number-pad" value={cost} onChangeText={setCost} />
 
             <View style={s.modalActions}>
               <Pressable style={[s.modalBtn, s.modalBtnGhost]} onPress={() => setModalOpen(false)}>
@@ -303,140 +265,56 @@ export default function Shop() {
   );
 }
 
-const BG = "#ffffff";
-const CARD_BG = "#ffffff";
-const BAR_BG = "#ffffff";
-const BORDER = "#e5e7eb";
-const TEXT_PRIMARY = "#111827";
-const TEXT_MUTED = "#6b7280";
-const TEXT_DIM = "#9ca3af";
-const PURPLE = "#6366f1";
-
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
-  topBar: {
-    backgroundColor: BAR_BG,
-    paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
-  screenTitle: { color: TEXT_PRIMARY, fontSize: 20, fontWeight: "700" },
-  coinPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#fef9c3",
-    borderWidth: 1,
-    borderColor: "#fbbf24",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  coinPillText: { color: "#fbbf24", fontWeight: "700", fontSize: 14 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 8,
-  },
-  sectionLabel: { color: TEXT_DIM, fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-  addBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: PURPLE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  screen: { flex: 1, backgroundColor: "#ffffff" },
+
+  topBar: { paddingTop: 72, paddingHorizontal: 20, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  pageTitle: { fontSize: 24, fontWeight: "800", color: "#0f172a" },
+  coinPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fef9c3", borderWidth: 1, borderColor: "#fbbf24", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  coinPillText: { color: "#b45309", fontWeight: "700", fontSize: 14 },
+
+  heroBanner: { marginHorizontal: 16, marginBottom: 8, backgroundColor: "#dbeafe", borderRadius: 20, paddingLeft: 20, paddingTop: 24, paddingBottom: 24, flexDirection: "row", alignItems: "center", overflow: "hidden", height: 150 },
+  heroLeft: { flex: 1, gap: 6 },
+  heroTitle: { fontSize: 20, fontWeight: "800", color: "#0f172a", lineHeight: 26 },
+  heroSub: { fontSize: 13, color: "#475569", fontWeight: "500", lineHeight: 18 },
+  heroImg: { width: 160, height: 190, position: "absolute", right: -30, bottom: -30 },
+
+  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
+  sectionLabel: { color: "#94a3b8", fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
+  addBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#3b82f6", alignItems: "center", justifyContent: "center" },
+
   empty: { alignItems: "center", paddingTop: 48, gap: 10 },
   emptyIcon: { fontSize: 40 },
-  emptyText: { color: TEXT_DIM, textAlign: "center", lineHeight: 22, fontSize: 14 },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 12,
-    marginHorizontal: 12,
-    marginBottom: 8,
-    padding: 12,
-    gap: 10,
-  },
-  cardDimmed: { opacity: 0.5 },
-  cardClaimed: { opacity: 0.4, backgroundColor: BAR_BG, borderColor: "#2d2045" },
-  cardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#eef2ff",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  cardIconClaimed: { backgroundColor: "#f3f4f6" },
-  cardIconText: { fontSize: 22 },
-  cardInfo: { flex: 1, minWidth: 0 },
-  cardTitle: { color: TEXT_PRIMARY, fontSize: 14, fontWeight: "600" },
-  cardTitleClaimed: { color: TEXT_DIM, fontSize: 14, textDecorationLine: "line-through" },
-  cardDesc: { color: TEXT_DIM, fontSize: 12, marginTop: 2 },
-  cardRight: { alignItems: "flex-end", gap: 6, flexShrink: 0 },
-  costRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  costText: { color: "#fbbf24", fontWeight: "700", fontSize: 13 },
-  costTextClaimed: { color: "#4a3a6a", fontSize: 13 },
-  buyBtn: {
-    backgroundColor: PURPLE,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  buyBtnDisabled: { backgroundColor: "#2d2045" },
-  buyBtnText: { color: TEXT_PRIMARY, fontSize: 12, fontWeight: "700" },
-  buyBtnTextDisabled: { color: TEXT_DIM },
-  divider: { height: 1, backgroundColor: BORDER, marginHorizontal: 12 },
-  modalBg: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
-  modalBox: {
-    backgroundColor: BAR_BG,
-    padding: 24,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    gap: 12,
-  },
-  modalTitle: { color: TEXT_PRIMARY, fontSize: 18, fontWeight: "700", marginBottom: 4 },
-  modalLabel: { color: TEXT_MUTED, fontSize: 12, fontWeight: "600" },
+  emptyText: { color: "#94a3b8", textAlign: "center", lineHeight: 22, fontSize: 14 },
+
+  card: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "white", borderWidth: 1, borderColor: "#f1f5f9", borderRadius: 16, marginHorizontal: 16, marginBottom: 10, padding: 16, shadowColor: "#0f172a", shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  cardClaimed: { opacity: 0.45 },
+  cardLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  cardEmoji: { fontSize: 28 },
+  cardTitle: { fontSize: 15, fontWeight: "700", color: "#0f172a" },
+  cardTitleClaimed: { fontSize: 15, fontWeight: "600", color: "#94a3b8", textDecorationLine: "line-through" },
+  cardDesc: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
+  deleteBox: { backgroundColor: "#ef4444", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 16, gap: 4, marginBottom: 10, marginRight: 16 },
+  deleteLabel: { color: "white", fontWeight: "600", fontSize: 11 },
+
+  costPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#f8fafc", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  costPillText: { color: "#94a3b8", fontWeight: "600", fontSize: 12 },
+
+  divider: { height: 1, backgroundColor: "#f1f5f9", marginHorizontal: 16, marginTop: 8 },
+
+  modalBg: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
+  modalBox: { backgroundColor: "white", padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 12 },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#0f172a", marginBottom: 4 },
+  modalLabel: { color: "#64748b", fontSize: 12, fontWeight: "600" },
   iconRow: { flexDirection: "row", gap: 8, paddingBottom: 4 },
-  iconOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#f3f4f6",
-    borderWidth: 1,
-    borderColor: BORDER,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconOptionActive: { borderColor: PURPLE, backgroundColor: "#eef2ff" },
+  iconOption: { width: 44, height: 44, borderRadius: 10, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0", alignItems: "center", justifyContent: "center" },
+  iconOptionActive: { borderColor: "#3b82f6", backgroundColor: "#dbeafe" },
   iconOptionText: { fontSize: 22 },
-  input: {
-    borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 10,
-    padding: 14,
-    color: TEXT_PRIMARY,
-    backgroundColor: "#f9fafb",
-    fontSize: 15,
-  },
+  input: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 10, padding: 14, fontSize: 15, color: "#0f172a" },
   modalActions: { flexDirection: "row", gap: 10, marginTop: 4 },
   modalBtn: { flex: 1, padding: 14, borderRadius: 12, alignItems: "center" },
-  modalBtnGhost: { backgroundColor: "#f3f4f6" },
-  modalBtnGhostText: { color: TEXT_MUTED, fontWeight: "600" },
-  modalBtnPrimary: { backgroundColor: PURPLE },
+  modalBtnGhost: { backgroundColor: "#f1f5f9" },
+  modalBtnGhostText: { color: "#475569", fontWeight: "600" },
+  modalBtnPrimary: { backgroundColor: "#3b82f6" },
   modalBtnPrimaryText: { color: "white", fontWeight: "700" },
 });
