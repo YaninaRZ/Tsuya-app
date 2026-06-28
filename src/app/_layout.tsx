@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { HabitsProvider } from "@/context/HabitsContext";
+import { setupNotifications } from "@/lib/notifications";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -15,9 +16,13 @@ function RootNavigation() {
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!session && !inAuthGroup) {
-      router.replace("/login"); // pas connecté → login
+      router.replace("/login");
     } else if (session && inAuthGroup) {
-      router.replace("/"); // connecté → accueil
+      router.replace("/");
+    }
+
+    if (session) {
+      setupNotifications();
     }
   }, [session, loading, segments]);
 

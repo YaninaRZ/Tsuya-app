@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import CatCoin from "@/components/CatCoin";
 
+import { notifyLevelUp, notifyStreakIfMilestone } from "@/lib/notifications";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -161,7 +162,9 @@ export default function Home() {
   const fetchStreak = useCallback(async () => {
     const { data } = await supabase.from("habit_logs").select("completed_on");
     const dates = new Set((data ?? []).map((l) => l.completed_on as string));
-    setStreak(computeStreak(dates));
+    const s = computeStreak(dates);
+    setStreak(s);
+    return s;
   }, []);
 
   const fetchLogs = useCallback(async (date: string) => {
@@ -192,7 +195,9 @@ export default function Home() {
       setDone((prev) => { const n = new Set(prev); n.delete(habit.id); return n; });
       Alert.alert("Oups", error.message); return;
     }
-    fetchProfile(); fetchStreak();
+    fetchProfile();
+    const currentStreak = await fetchStreak();
+    notifyStreakIfMilestone(currentStreak);
 
     // Update local completion count
     setHabits((prev) => prev.map((h) =>
@@ -222,6 +227,7 @@ export default function Home() {
       }
       setLoot({ label: data.loot_label, type: data.loot_type, value: data.loot_value });
     } else if (data?.leveled_up) {
+      notifyLevelUp(data.level);
       if (data.badge_key) setEarnedBadge({ key: data.badge_key, level: data.level });
       else setLevelUpModal({ level: data.level, coins: data.coins_gained });
     } else {
