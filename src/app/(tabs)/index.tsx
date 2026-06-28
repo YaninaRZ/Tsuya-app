@@ -16,6 +16,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -80,6 +82,13 @@ function statusChip(isDone: boolean, isPublic: boolean, streak: number) {
   return { icon: "time-outline" as const, label: "À faire", color: "#9ca3af", bg: "#f3f4f6" };
 }
 
+const ENCOURAGE_MESSAGES = [
+  "Tu es discipliné(e) ! Continue comme ça 💪",
+  "Un pas de plus vers tes objectifs !",
+  "Excellente habitude ! Tu es constant(e).",
+  "Bravo ! La régularité, c'est ta force.",
+];
+
 export default function Home() {
   const { session } = useAuth();
   const { refreshKey, openEditModal } = useHabits();
@@ -97,6 +106,8 @@ export default function Home() {
   const [confirmTarget, setConfirmTarget] = useState<Habit | null>(null);
   const [hasRewards, setHasRewards] = useState(true);
   const [filter, setFilter] = useState<"all" | "daily" | "weekly" | "challenge">("all");
+  const [encourageVisible, setEncourageVisible] = useState(false);
+  const [encourageMsg, setEncourageMsg] = useState("");
 
   const isToday = selectedDate === dKey(new Date());
 
@@ -213,6 +224,9 @@ export default function Home() {
     } else if (data?.leveled_up) {
       if (data.badge_key) setEarnedBadge({ key: data.badge_key, level: data.level });
       else setLevelUpModal({ level: data.level, coins: data.coins_gained });
+    } else {
+      setEncourageMsg(ENCOURAGE_MESSAGES[Math.floor(Math.random() * ENCOURAGE_MESSAGES.length)]);
+      setEncourageVisible(true);
     }
   }
 
@@ -412,6 +426,27 @@ export default function Home() {
           else setLevelUpModal({ level: lu.level, coins: lu.coins_gained });
         }
       }} />
+      <Modal
+        visible={encourageVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setEncourageVisible(false)}
+      >
+        <Pressable style={s.encOverlay} onPress={() => setEncourageVisible(false)}>
+          <View style={s.encCard} onStartShouldSetResponder={() => true}>
+            <Image
+              source={require("../../../assets/images/happy-tsuya.png")}
+              style={s.encMascot}
+              resizeMode="contain"
+            />
+            <Text style={s.encTitle}>Bravo !</Text>
+            <Text style={s.encMessage}>{encourageMsg}</Text>
+            <Pressable style={s.encBtn} onPress={() => setEncourageVisible(false)}>
+              <Text style={s.encBtnText}>Merci !</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -459,6 +494,15 @@ const s = StyleSheet.create({
   circleDone: { backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
   packChip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start" },
   packText: { fontSize: 11, fontWeight: "700" },
+
+  // Encouragement modal
+  encOverlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)", padding: 24 },
+  encCard: { backgroundColor: "white", borderRadius: 24, padding: 28, alignItems: "center", gap: 14, width: "100%" },
+  encMascot: { width: 100, height: 100 },
+  encTitle: { fontSize: 28, fontWeight: "900", color: "#0f172a" },
+  encMessage: { fontSize: 15, color: "#64748b", textAlign: "center", lineHeight: 22, fontWeight: "500" },
+  encBtn: { width: "100%", backgroundColor: "#0f172a", borderRadius: 28, paddingVertical: 16, alignItems: "center" },
+  encBtnText: { color: "white", fontSize: 16, fontWeight: "800" },
 
   // Swipe actions
   editBox: { backgroundColor: "#7c3aed", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 22, gap: 4, marginBottom: 12 },
