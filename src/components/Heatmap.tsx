@@ -63,7 +63,20 @@ export default function Heatmap({ hideTitle = false }: { hideTitle?: boolean }) 
               const done = !future && count > 0;
 
               return (
-                <View key={k} style={s.cell}>
+                <View
+                  key={k}
+                  style={[s.cell, isToday && s.cellToday]}
+                  accessible={true}
+                  accessibilityLabel={
+                    future
+                      ? `${d.getDate()} — jour futur`
+                      : done
+                      ? `${d.getDate()} — habitude complétée`
+                      : isToday
+                      ? `${d.getDate()} — aujourd'hui`
+                      : `${d.getDate()} — pas d'activité`
+                  }
+                >
                   {done && (
                     <Image
                       source={require("../../assets/images/star.png")}
@@ -99,6 +112,11 @@ const s = StyleSheet.create({
     height: CELL,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 6,
+  },
+  cellToday: {
+    borderWidth: 2,
+    borderColor: "#3b82f6",
   },
   starBg: {
     position: "absolute",

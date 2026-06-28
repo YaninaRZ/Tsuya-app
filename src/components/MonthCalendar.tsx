@@ -100,7 +100,7 @@ export default function MonthCalendar() {
             return (
               <Pressable
                 key={ci}
-                style={s.cell}
+                style={[s.cell, isToday && s.cellToday]}
                 onPress={() => setDetailDate(dateStr)}
               >
                 {done && (
@@ -172,7 +172,8 @@ const s = StyleSheet.create({
   labelsRow: { flexDirection: "row", marginBottom: 2 },
   dayLabel: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
   weekRow: { flexDirection: "row" },
-  cell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center" },
+  cell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 6 },
+  cellToday: { borderWidth: 2, borderColor: "#3b82f6" },
   // Couleurs identiques à Heatmap.tsx
   starBg: { position: "absolute", width: STAR_SIZE, height: STAR_SIZE, opacity: 0.85 },
   dayNum: { position: "absolute", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
