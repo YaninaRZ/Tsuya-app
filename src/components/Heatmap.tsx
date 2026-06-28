@@ -30,7 +30,7 @@ function buildColumns() {
   return cols;
 }
 
-export default function Heatmap() {
+export default function Heatmap({ hideTitle = false }: { hideTitle?: boolean }) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const todayKey = key(new Date());
 
@@ -51,7 +51,7 @@ export default function Heatmap() {
 
   return (
     <View style={s.wrap}>
-      <Text style={s.title}>Activité</Text>
+      {!hideTitle && <Text style={s.title}>Activité</Text>}
       <View style={s.grid}>
         {columns.map((col, ci) => (
           <View key={ci} style={{ gap: GAP }}>

@@ -1,4 +1,5 @@
 import Heatmap from "@/components/Heatmap";
+import MonthCalendar from "@/components/MonthCalendar";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
@@ -68,6 +69,7 @@ export default function Profil() {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [calView, setCalView] = useState<"heatmap" | "calendar">("heatmap");
 
   const fetchProfile = useCallback(async () => {
     if (!session) return;
@@ -294,9 +296,26 @@ export default function Profil() {
         </ScrollView>
       </View>
 
-      {/* Heatmap */}
+      {/* Activité */}
       <View style={s.section}>
-        <Heatmap />
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Activité</Text>
+          <View style={s.viewToggle}>
+            <Pressable
+              style={[s.viewToggleBtn, calView === "heatmap" && s.viewToggleActive]}
+              onPress={() => setCalView("heatmap")}
+            >
+              <Text style={[s.viewToggleText, calView === "heatmap" && s.viewToggleActiveText]}>9 sem.</Text>
+            </Pressable>
+            <Pressable
+              style={[s.viewToggleBtn, calView === "calendar" && s.viewToggleActive]}
+              onPress={() => setCalView("calendar")}
+            >
+              <Text style={[s.viewToggleText, calView === "calendar" && s.viewToggleActiveText]}>Mois</Text>
+            </Pressable>
+          </View>
+        </View>
+        {calView === "heatmap" ? <Heatmap hideTitle /> : <MonthCalendar />}
       </View>
 
       {/* Sign out */}
@@ -471,6 +490,13 @@ const s = StyleSheet.create({
   badgeLabelLocked: { color: "#cbd5e1" },
   badgeIconWrap: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
   badgeLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
+
+  // Activity view toggle
+  viewToggle: { flexDirection: "row", backgroundColor: "#f1f5f9", borderRadius: 10, padding: 2 },
+  viewToggleBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  viewToggleActive: { backgroundColor: "white", elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+  viewToggleText: { fontSize: 13, fontWeight: "600", color: "#6b7280" },
+  viewToggleActiveText: { color: "#0f172a" },
 
   // Sign out
   signOutBtn: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 20, marginTop: 24, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, backgroundColor: "#fef2f2", borderWidth: 1, borderColor: "#fecaca" },
