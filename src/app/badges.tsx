@@ -1,5 +1,7 @@
+import { useThemeMode } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -20,6 +22,9 @@ const BADGE_CATALOG: BadgeDef[] = [
 ];
 
 export default function BadgesPage() {
+  const t = useTheme();
+  const s = makeStyles(t);
+  const { isDark } = useThemeMode();
   const { session } = useAuth();
   const [earnedKeys, setEarnedKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -39,10 +44,9 @@ export default function BadgesPage() {
 
   return (
     <View style={s.screen}>
-      {/* Header */}
       <View style={s.header}>
         <Pressable style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="#0f172a" />
+          <Ionicons name="chevron-back" size={22} color={t.text} />
         </Pressable>
         <View>
           <Text style={s.title}>Badges</Text>
@@ -66,7 +70,7 @@ export default function BadgesPage() {
               />
               {!earned && (
                 <View style={s.lockWrap}>
-                  <Ionicons name="lock-closed" size={13} color="#94a3b8" />
+                  <Ionicons name="lock-closed" size={13} color={t.textMuted} />
                 </View>
               )}
               <Text style={[s.label, !earned && s.labelLocked]} numberOfLines={1}>{def.label}</Text>
@@ -76,14 +80,13 @@ export default function BadgesPage() {
         })}
       </ScrollView>
 
-      {/* Full-screen locked badge preview */}
       <Modal visible={!!preview} animationType="fade" transparent={false} onRequestClose={() => setPreview(null)}>
         {preview && (() => {
           const isEarned = earnedKeys.has(preview.key);
           return (
             <View style={s.previewScreen}>
               <Pressable style={s.previewClose} onPress={() => setPreview(null)}>
-                <Ionicons name="close" size={22} color="#64748b" />
+                <Ionicons name="close" size={22} color={t.textSecondary} />
               </Pressable>
 
               <Image
@@ -96,7 +99,7 @@ export default function BadgesPage() {
                 <Ionicons
                   name={isEarned ? "checkmark-circle" : "lock-closed"}
                   size={18}
-                  color={isEarned ? "#10b981" : "#94a3b8"}
+                  color={isEarned ? "#10b981" : t.textMuted}
                 />
                 <Text style={[s.lockBadgeText, isEarned && { color: "#10b981" }]}>
                   {isEarned ? "Badge débloqué !" : "Badge verrouillé"}
@@ -106,9 +109,9 @@ export default function BadgesPage() {
               <Text style={s.previewLabel}>{preview.label}</Text>
               <Text style={s.previewDesc}>{preview.description}</Text>
 
-              <View style={[s.previewTipBox, isEarned && { backgroundColor: "#f0fdf4" }]}>
-                <View style={[s.previewTipTag, isEarned && { backgroundColor: "#bbf7d0" }]}>
-                  <Text style={[s.previewTipTagText, isEarned && { color: "#15803d" }]}>
+              <View style={[s.previewTipBox, isEarned && { backgroundColor: isDark ? "#0a2818" : "#f0fdf4" }]}>
+                <View style={[s.previewTipTag, isEarned && { backgroundColor: isDark ? "#065f46" : "#bbf7d0" }]}>
+                  <Text style={[s.previewTipTagText, isEarned && { color: isDark ? "#6ee7b7" : "#15803d" }]}>
                     {isEarned ? "Condition" : "Comment débloquer"}
                   </Text>
                 </View>
@@ -126,62 +129,63 @@ export default function BadgesPage() {
   );
 }
 
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#ffffff", paddingTop: 60 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: t.background, paddingTop: 60 },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: t.background },
 
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingBottom: 20 },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#f1f5f9", alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 22, fontWeight: "800", color: "#0f172a" },
-  sub: { fontSize: 12, color: "#94a3b8", fontWeight: "600", marginTop: 2 },
+    header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingBottom: 20 },
+    backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: t.navBtn, alignItems: "center", justifyContent: "center" },
+    title: { fontSize: 22, fontWeight: "800", color: t.text },
+    sub: { fontSize: 12, color: t.textMuted, fontWeight: "600", marginTop: 2 },
 
-  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12, paddingBottom: 40 },
+    grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12, paddingBottom: 40 },
 
-  card: { width: "30%", alignItems: "center", gap: 6, borderRadius: 18, padding: 14, borderWidth: 1.5, position: "relative" },
-  cardEarned: { backgroundColor: "#fafafa", borderColor: "#e2e8f0" },
-  cardLocked: { backgroundColor: "#f8fafc", borderColor: "#f1f5f9" },
+    card: { width: "30%", alignItems: "center", gap: 6, borderRadius: 18, padding: 14, borderWidth: 1.5, position: "relative" },
+    cardEarned: { backgroundColor: t.card, borderColor: t.border },
+    cardLocked: { backgroundColor: t.surface, borderColor: t.borderLight },
 
-  img: { width: 70, height: 70 },
-  imgLocked: { opacity: 0.25 },
-  lockWrap: { position: "absolute", top: 8, right: 8 },
+    img: { width: 70, height: 70 },
+    imgLocked: { opacity: 0.25 },
+    lockWrap: { position: "absolute", top: 8, right: 8 },
 
-  label: { fontSize: 11, fontWeight: "800", color: "#0f172a", textAlign: "center" },
-  labelLocked: { color: "#cbd5e1" },
-  desc: { fontSize: 10, color: "#64748b", textAlign: "center", lineHeight: 14 },
-  descLocked: { color: "#e2e8f0" },
+    label: { fontSize: 11, fontWeight: "800", color: t.text, textAlign: "center" },
+    labelLocked: { color: t.textMuted },
+    desc: { fontSize: 10, color: t.textSecondary, textAlign: "center", lineHeight: 14 },
+    descLocked: { color: t.border },
 
-  // Preview modal
-  previewScreen: {
-    flex: 1,
-    backgroundColor: "white",
-    paddingHorizontal: 28,
-    paddingTop: 64,
-    paddingBottom: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 20,
-  },
-  previewClose: {
-    position: "absolute",
-    top: 56,
-    right: 24,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f1f5f9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  previewImg: { width: 200, height: 200 },
-  previewImgLocked: { opacity: 0.25 },
-  lockBadge: { flexDirection: "row", alignItems: "center", gap: 6 },
-  lockBadgeText: { fontSize: 13, color: "#94a3b8", fontWeight: "600" },
-  previewLabel: { fontSize: 26, fontWeight: "900", color: "#0f172a", textAlign: "center" },
-  previewDesc: { fontSize: 15, color: "#64748b", textAlign: "center", lineHeight: 22 },
-  previewTipBox: { width: "100%", backgroundColor: "#f8fafc", borderRadius: 18, padding: 20, gap: 10 },
-  previewTipTag: { backgroundColor: "#e2e8f0", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, alignSelf: "flex-start" },
-  previewTipTagText: { color: "#475569", fontWeight: "700", fontSize: 13 },
-  previewTipText: { fontSize: 14, color: "#475569", lineHeight: 22 },
-  previewBtn: { width: "100%", backgroundColor: "#0f172a", borderRadius: 28, paddingVertical: 20, alignItems: "center" },
-  previewBtnText: { color: "white", fontSize: 17, fontWeight: "800" },
-});
+    previewScreen: {
+      flex: 1,
+      backgroundColor: t.background,
+      paddingHorizontal: 28,
+      paddingTop: 64,
+      paddingBottom: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 20,
+    },
+    previewClose: {
+      position: "absolute",
+      top: 56,
+      right: 24,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: t.navBtn,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    previewImg: { width: 200, height: 200 },
+    previewImgLocked: { opacity: 0.25 },
+    lockBadge: { flexDirection: "row", alignItems: "center", gap: 6 },
+    lockBadgeText: { fontSize: 13, color: t.textMuted, fontWeight: "600" },
+    previewLabel: { fontSize: 26, fontWeight: "900", color: t.text, textAlign: "center" },
+    previewDesc: { fontSize: 15, color: t.textSecondary, textAlign: "center", lineHeight: 22 },
+    previewTipBox: { width: "100%", backgroundColor: t.surface, borderRadius: 18, padding: 20, gap: 10 },
+    previewTipTag: { backgroundColor: t.surfaceAlt, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, alignSelf: "flex-start" },
+    previewTipTagText: { color: t.textSecondary, fontWeight: "700", fontSize: 13 },
+    previewTipText: { fontSize: 14, color: t.textSecondary, lineHeight: 22 },
+    previewBtn: { width: "100%", backgroundColor: t.actionBtn, borderRadius: 28, paddingVertical: 20, alignItems: "center" },
+    previewBtnText: { color: t.actionBtnText, fontSize: 17, fontWeight: "800" },
+  });
+}

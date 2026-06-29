@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
@@ -11,6 +12,8 @@ import {
 } from "react-native";
 
 export default function Register() {
+  const t = useTheme();
+  const s = makeStyles(t);
   const [pseudo, setPseudo] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +24,7 @@ export default function Register() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { pseudo } }, // ← repris par ton trigger handle_new_user
+      options: { data: { pseudo } },
     });
     setLoading(false);
     if (error) Alert.alert("Erreur", error.message);
@@ -34,12 +37,14 @@ export default function Register() {
       <TextInput
         style={s.input}
         placeholder="Pseudo"
+        placeholderTextColor={t.placeholder}
         value={pseudo}
         onChangeText={setPseudo}
       />
       <TextInput
         style={s.input}
         placeholder="Email"
+        placeholderTextColor={t.placeholder}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -48,6 +53,7 @@ export default function Register() {
       <TextInput
         style={s.input}
         placeholder="Mot de passe"
+        placeholderTextColor={t.placeholder}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -62,16 +68,13 @@ export default function Register() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 12 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 10, padding: 14 },
-  button: {
-    backgroundColor: "#6366f1",
-    padding: 16,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  buttonText: { color: "white", fontWeight: "600" },
-  link: { textAlign: "center", color: "#6366f1", marginTop: 8 },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: { flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: t.background },
+    title: { fontSize: 28, fontWeight: "700", marginBottom: 12, color: t.text },
+    input: { borderWidth: 1, borderColor: t.inputBorder, borderRadius: 10, padding: 14, backgroundColor: t.input, color: t.text },
+    button: { backgroundColor: "#6366f1", padding: 16, borderRadius: 10, alignItems: "center" },
+    buttonText: { color: "white", fontWeight: "600" },
+    link: { textAlign: "center", color: "#6366f1", marginTop: 8 },
+  });
+}

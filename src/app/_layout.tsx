@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { HabitsProvider } from "@/context/HabitsContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { setupNotifications } from "@/lib/notifications";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
@@ -39,11 +40,13 @@ function RootNavigation() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <HabitsProvider>
-          <RootNavigation />
-        </HabitsProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <HabitsProvider>
+            <RootNavigation />
+          </HabitsProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

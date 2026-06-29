@@ -1,3 +1,4 @@
+import { useTheme, type Theme } from "@/lib/theme";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 type Props = {
@@ -36,6 +37,9 @@ function badgeDesc(level: number) {
 }
 
 export default function BadgeModal({ badgeKey, level, onClose }: Props) {
+  const t = useTheme();
+  const s = makeStyles(t);
+
   if (!badgeKey) return null;
 
   const badgeImage = BADGE_IMAGES[badgeKey];
@@ -74,25 +78,27 @@ export default function BadgeModal({ badgeKey, level, onClose }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "white",
-    paddingHorizontal: 28,
-    paddingTop: 72,
-    paddingBottom: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 28,
-  },
-  top: { alignItems: "center", gap: 6 },
-  sup: { fontSize: 13, color: "#94a3b8", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
-  sub: { fontSize: 22, fontWeight: "800", color: "#0f172a", textAlign: "center" },
-  badgeImg: { width: 180, height: 180 },
-  tipBox: { width: "100%", backgroundColor: "#eef2ff", borderRadius: 18, padding: 20, gap: 10 },
-  tipTag: { backgroundColor: "#c7d2fe", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, alignSelf: "flex-start" },
-  tipTagText: { color: "#4338ca", fontWeight: "700", fontSize: 13 },
-  tipText: { fontSize: 14, color: "#334155", lineHeight: 22 },
-  btn: { width: "100%", backgroundColor: "#0f172a", borderRadius: 28, paddingVertical: 20, alignItems: "center" },
-  btnText: { color: "white", fontSize: 17, fontWeight: "800" },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: t.background,
+      paddingHorizontal: 28,
+      paddingTop: 72,
+      paddingBottom: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 28,
+    },
+    top: { alignItems: "center", gap: 6 },
+    sup: { fontSize: 13, color: t.textMuted, fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
+    sub: { fontSize: 22, fontWeight: "800", color: t.text, textAlign: "center" },
+    badgeImg: { width: 180, height: 180 },
+    tipBox: { width: "100%", backgroundColor: t.blueLight, borderRadius: 18, padding: 20, gap: 10 },
+    tipTag: { backgroundColor: t.surfaceAlt, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, alignSelf: "flex-start" },
+    tipTagText: { color: t.purple, fontWeight: "700", fontSize: 13 },
+    tipText: { fontSize: 14, color: t.textSecondary, lineHeight: 22 },
+    btn: { width: "100%", backgroundColor: t.actionBtn, borderRadius: 28, paddingVertical: 20, alignItems: "center" },
+    btnText: { color: t.actionBtnText, fontSize: 17, fontWeight: "800" },
+  });
+}

@@ -1,6 +1,7 @@
 import ConfirmModal from "@/components/ConfirmModal";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { Ionicons } from "@expo/vector-icons";
 import CatCoin from "@/components/CatCoin";
 import { useFocusEffect } from "expo-router";
@@ -53,6 +54,8 @@ function CoinArc({ cost, canAfford, size = 56 }: { cost: number; canAfford: bool
 }
 
 export default function Shop() {
+  const t = useTheme();
+  const s = makeStyles(t);
   const { session } = useAuth();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [coins, setCoins] = useState(0);
@@ -246,9 +249,9 @@ export default function Shop() {
               </View>
             </ScrollView>
 
-            <TextInput style={s.input} placeholder="Nom (ex: Séance ciné)" value={title} onChangeText={setTitle} />
-            <TextInput style={s.input} placeholder="Description (optionnel)" value={description} onChangeText={setDescription} />
-            <TextInput style={s.input} placeholder="Prix en coins" keyboardType="number-pad" value={cost} onChangeText={setCost} />
+            <TextInput style={s.input} placeholder="Nom (ex: Séance ciné)" placeholderTextColor={t.placeholder} value={title} onChangeText={setTitle} />
+            <TextInput style={s.input} placeholder="Description (optionnel)" placeholderTextColor={t.placeholder} value={description} onChangeText={setDescription} />
+            <TextInput style={s.input} placeholder="Prix en coins" placeholderTextColor={t.placeholder} keyboardType="number-pad" value={cost} onChangeText={setCost} />
 
             <View style={s.modalActions}>
               <Pressable style={[s.modalBtn, s.modalBtnGhost]} onPress={() => setModalOpen(false)}>
@@ -265,56 +268,58 @@ export default function Shop() {
   );
 }
 
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#ffffff" },
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: t.background },
 
-  topBar: { paddingTop: 72, paddingHorizontal: 20, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  pageTitle: { fontSize: 24, fontWeight: "800", color: "#0f172a" },
-  coinPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "white", borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  coinPillText: { color: "#1e3a5f", fontWeight: "700", fontSize: 14 },
+    topBar: { paddingTop: 72, paddingHorizontal: 20, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    pageTitle: { fontSize: 24, fontWeight: "800", color: t.text },
+    coinPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+    coinPillText: { color: t.blueDark, fontWeight: "700", fontSize: 14 },
 
-  heroBanner: { marginHorizontal: 16, marginBottom: 8, backgroundColor: "#dbeafe", borderRadius: 20, paddingLeft: 20, paddingTop: 24, paddingBottom: 24, flexDirection: "row", alignItems: "center", overflow: "hidden", height: 150 },
-  heroLeft: { flex: 1, gap: 6 },
-  heroTitle: { fontSize: 20, fontWeight: "800", color: "#0f172a", lineHeight: 26 },
-  heroSub: { fontSize: 13, color: "#475569", fontWeight: "500", lineHeight: 18 },
-  heroImg: { width: 160, height: 190, position: "absolute", right: -30, bottom: -30 },
+    heroBanner: { marginHorizontal: 16, marginBottom: 8, backgroundColor: t.headerBg, borderRadius: 20, paddingLeft: 20, paddingTop: 24, paddingBottom: 24, flexDirection: "row", alignItems: "center", overflow: "hidden", height: 150 },
+    heroLeft: { flex: 1, gap: 6 },
+    heroTitle: { fontSize: 20, fontWeight: "800", color: t.text, lineHeight: 26 },
+    heroSub: { fontSize: 13, color: t.textSecondary, fontWeight: "500", lineHeight: 18 },
+    heroImg: { width: 160, height: 190, position: "absolute", right: -30, bottom: -30 },
 
-  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
-  sectionLabel: { color: "#94a3b8", fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-  addBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#3b82f6", alignItems: "center", justifyContent: "center" },
+    sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
+    sectionLabel: { color: "#94a3b8", fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
+    addBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#3b82f6", alignItems: "center", justifyContent: "center" },
 
-  empty: { alignItems: "center", paddingTop: 48, gap: 10 },
-  emptyIcon: { fontSize: 40 },
-  emptyText: { color: "#94a3b8", textAlign: "center", lineHeight: 22, fontSize: 14 },
+    empty: { alignItems: "center", paddingTop: 48, gap: 10 },
+    emptyIcon: { fontSize: 40 },
+    emptyText: { color: "#94a3b8", textAlign: "center", lineHeight: 22, fontSize: 14 },
 
-  card: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "white", borderWidth: 1, borderColor: "#f1f5f9", borderRadius: 16, marginHorizontal: 16, marginBottom: 10, padding: 16, shadowColor: "#0f172a", shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
-  cardClaimed: { opacity: 0.45 },
-  cardLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  cardEmoji: { fontSize: 28 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: "#0f172a" },
-  cardTitleClaimed: { fontSize: 15, fontWeight: "600", color: "#94a3b8", textDecorationLine: "line-through" },
-  cardDesc: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
-  deleteBox: { backgroundColor: "#ef4444", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 16, gap: 4, marginBottom: 10, marginRight: 16 },
-  deleteLabel: { color: "white", fontWeight: "600", fontSize: 11 },
+    card: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: t.card, borderWidth: 1, borderColor: t.borderLight, borderRadius: 16, marginHorizontal: 16, marginBottom: 10, padding: 16, shadowColor: "#0f172a", shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+    cardClaimed: { opacity: 0.45 },
+    cardLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+    cardEmoji: { fontSize: 28 },
+    cardTitle: { fontSize: 15, fontWeight: "700", color: t.text },
+    cardTitleClaimed: { fontSize: 15, fontWeight: "600", color: "#94a3b8", textDecorationLine: "line-through" },
+    cardDesc: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
+    deleteBox: { backgroundColor: "#ef4444", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 16, gap: 4, marginBottom: 10, marginRight: 16 },
+    deleteLabel: { color: "white", fontWeight: "600", fontSize: 11 },
 
-  costPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#f8fafc", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  costPillText: { color: "#94a3b8", fontWeight: "600", fontSize: 12 },
+    costPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: t.surfaceAlt, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+    costPillText: { color: "#94a3b8", fontWeight: "600", fontSize: 12 },
 
-  divider: { height: 1, backgroundColor: "#f1f5f9", marginHorizontal: 16, marginTop: 8 },
+    divider: { height: 1, backgroundColor: t.borderLight, marginHorizontal: 16, marginTop: 8 },
 
-  modalBg: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
-  modalBox: { backgroundColor: "white", padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 12 },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#0f172a", marginBottom: 4 },
-  modalLabel: { color: "#64748b", fontSize: 12, fontWeight: "600" },
-  iconRow: { flexDirection: "row", gap: 8, paddingBottom: 4 },
-  iconOption: { width: 44, height: 44, borderRadius: 10, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0", alignItems: "center", justifyContent: "center" },
-  iconOptionActive: { borderColor: "#3b82f6", backgroundColor: "#dbeafe" },
-  iconOptionText: { fontSize: 22 },
-  input: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 10, padding: 14, fontSize: 15, color: "#0f172a" },
-  modalActions: { flexDirection: "row", gap: 10, marginTop: 4 },
-  modalBtn: { flex: 1, padding: 14, borderRadius: 12, alignItems: "center" },
-  modalBtnGhost: { backgroundColor: "#f1f5f9" },
-  modalBtnGhostText: { color: "#475569", fontWeight: "600" },
-  modalBtnPrimary: { backgroundColor: "#3b82f6" },
-  modalBtnPrimaryText: { color: "white", fontWeight: "700" },
-});
+    modalBg: { flex: 1, justifyContent: "flex-end", backgroundColor: t.overlay },
+    modalBox: { backgroundColor: t.card, padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 12 },
+    modalTitle: { fontSize: 18, fontWeight: "700", color: t.text, marginBottom: 4 },
+    modalLabel: { color: t.textSecondary, fontSize: 12, fontWeight: "600" },
+    iconRow: { flexDirection: "row", gap: 8, paddingBottom: 4 },
+    iconOption: { width: 44, height: 44, borderRadius: 10, backgroundColor: t.surfaceAlt, borderWidth: 1, borderColor: t.border, alignItems: "center", justifyContent: "center" },
+    iconOptionActive: { borderColor: "#3b82f6", backgroundColor: t.blueLight },
+    iconOptionText: { fontSize: 22 },
+    input: { borderWidth: 1, borderColor: t.inputBorder, borderRadius: 10, padding: 14, fontSize: 15, color: t.text, backgroundColor: t.input },
+    modalActions: { flexDirection: "row", gap: 10, marginTop: 4 },
+    modalBtn: { flex: 1, padding: 14, borderRadius: 12, alignItems: "center" },
+    modalBtnGhost: { backgroundColor: t.ghostBg },
+    modalBtnGhostText: { color: t.ghostText, fontWeight: "600" },
+    modalBtnPrimary: { backgroundColor: "#3b82f6" },
+    modalBtnPrimaryText: { color: "white", fontWeight: "700" },
+  });
+}

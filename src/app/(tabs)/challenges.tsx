@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { Ionicons } from "@expo/vector-icons";
 import CatCoin from "@/components/CatCoin";
 import { router, useFocusEffect } from "expo-router";
@@ -15,6 +16,7 @@ import {
   Text,
   View,
 } from "react-native";
+
 type Challenge = {
   id: string;
   title: string;
@@ -45,6 +47,8 @@ function Avatar({ pseudo, size = 26 }: { pseudo: string; size?: number }) {
 }
 
 export default function Challenges() {
+  const t = useTheme();
+  const s = makeStyles(t);
   const { session } = useAuth();
   const { triggerRefresh } = useHabits();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -145,7 +149,7 @@ export default function Challenges() {
           </View>
         }
         renderItem={({ item, index }) => {
-          const cardBg = index % 2 === 0 ? "#f0eeff" : "#fff0f6";
+          const cardBg = index % 2 === 0 ? t.challengeEven : t.challengeOdd;
           const illus = index % 2 === 0
             ? require("../../../assets/images/small-cat.png")
             : require("../../../assets/images/happy-tsuya.png");
@@ -217,47 +221,49 @@ export default function Challenges() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#ffffff", paddingTop: 72 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.background, paddingTop: 72 },
+    center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 12 },
-  pageTitle: { fontSize: 26, fontWeight: "800", color: "#0f172a" },
-  coinPill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "white", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: "#e2e8f0" },
-  coinText: { color: "#1e3a5f", fontWeight: "700", fontSize: 14 },
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 12 },
+    pageTitle: { fontSize: 26, fontWeight: "800", color: t.text },
+    coinPill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: t.card, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: t.border },
+    coinText: { color: t.blueDark, fontWeight: "700", fontSize: 14 },
 
-  banner: { marginHorizontal: 20, marginBottom: 16, backgroundColor: "#dbeafe", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 16, flexDirection: "row", alignItems: "center", gap: 12 },
-  bannerCat: { width: 64, height: 64 },
-  bannerText: { flex: 1, gap: 4 },
-  bannerTitle: { fontSize: 15, fontWeight: "800", color: "#1e3a5f", lineHeight: 21 },
-  bannerSub: { fontSize: 11, color: "#3b82f6", fontWeight: "500" },
+    banner: { marginHorizontal: 20, marginBottom: 16, backgroundColor: t.headerBg, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+    bannerCat: { width: 64, height: 64 },
+    bannerText: { flex: 1, gap: 4 },
+    bannerTitle: { fontSize: 15, fontWeight: "800", color: t.blueDark, lineHeight: 21 },
+    bannerSub: { fontSize: 11, color: "#3b82f6", fontWeight: "500" },
 
-  emptyWrap: { alignItems: "center", marginTop: 60, gap: 14 },
-  emptyText: { textAlign: "center", color: "#94a3b8", lineHeight: 22, fontSize: 14 },
+    emptyWrap: { alignItems: "center", marginTop: 60, gap: 14 },
+    emptyText: { textAlign: "center", color: t.textMuted, lineHeight: 22, fontSize: 14 },
 
-  card: {
-    borderRadius: 22,
-    padding: 18,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    overflow: "hidden",
-  },
-  cardLeft: { flex: 1, gap: 6, paddingRight: 8 },
-  cardTitle: { fontSize: 18, fontWeight: "800", color: "#0f172a", lineHeight: 24 },
-  cardAuthor: { fontSize: 12, color: "#64748b", fontWeight: "500" },
-  partRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  partCount: { fontSize: 12, color: "#475569", fontWeight: "600", marginLeft: 6 },
-  cardBottomRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
-  actionBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 5, paddingVertical: 9, paddingHorizontal: 16, borderRadius: 20,
-  },
-  actionBtnText: { fontSize: 13, fontWeight: "700" },
-  btnJoin: { backgroundColor: "#0f172a" },
-  btnJoined: { backgroundColor: "#dbeafe" },
-  btnLeft: { backgroundColor: "#f3f4f6" },
-  btnOwn: { backgroundColor: "#ede9fe" },
-  durationPill: { backgroundColor: "rgba(0,0,0,0.08)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
-  durationText: { fontSize: 12, fontWeight: "700", color: "#374151" },
-  cardIllus: { width: 90, height: 90, marginTop: -4 },
-});
+    card: {
+      borderRadius: 22,
+      padding: 18,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      overflow: "hidden",
+    },
+    cardLeft: { flex: 1, gap: 6, paddingRight: 8 },
+    cardTitle: { fontSize: 18, fontWeight: "800", color: t.text, lineHeight: 24 },
+    cardAuthor: { fontSize: 12, color: t.textSecondary, fontWeight: "500" },
+    partRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+    partCount: { fontSize: 12, color: t.textSecondary, fontWeight: "600", marginLeft: 6 },
+    cardBottomRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+    actionBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center",
+      gap: 5, paddingVertical: 9, paddingHorizontal: 16, borderRadius: 20,
+    },
+    actionBtnText: { fontSize: 13, fontWeight: "700" },
+    btnJoin: { backgroundColor: t.actionBtn },
+    btnJoined: { backgroundColor: t.blueLight },
+    btnLeft: { backgroundColor: t.ghostBg },
+    btnOwn: { backgroundColor: t.habitChallenge },
+    durationPill: { backgroundColor: "rgba(0,0,0,0.08)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
+    durationText: { fontSize: 12, fontWeight: "700", color: t.textSecondary },
+    cardIllus: { width: 90, height: 90, marginTop: -4 },
+  });
+}

@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -20,6 +21,8 @@ const DIFF_COLORS: Record<string, string> = { easy: "#10b981", medium: "#f97316"
 const DIFF_LABELS: Record<string, string> = { easy: "Débutant", medium: "Intermédiaire", hard: "Expert" };
 
 export default function AddHabitModal() {
+  const t = useTheme();
+  const s = makeStyles(t);
   const { session } = useAuth();
   const { modalOpen, closeModal, triggerRefresh, editingHabit } = useHabits();
   const [title, setTitle] = useState("");
@@ -100,8 +103,8 @@ export default function AddHabitModal() {
           <ScrollView style={{ maxHeight: "90%" }} contentContainerStyle={s.box} keyboardShouldPersistTaps="handled">
             <Text style={s.title}>{isEditing ? "Modifier l'habitude" : "Nouvelle habitude"}</Text>
 
-            <TextInput style={s.input} placeholder="Titre (ex: Boire 2L d'eau)" value={title} onChangeText={setTitle} />
-            <TextInput style={s.input} placeholder="Description (optionnel)" value={description} onChangeText={setDescription} />
+            <TextInput style={s.input} placeholder="Titre (ex: Boire 2L d'eau)" placeholderTextColor={t.placeholder} value={title} onChangeText={setTitle} />
+            <TextInput style={s.input} placeholder="Description (optionnel)" placeholderTextColor={t.placeholder} value={description} onChangeText={setDescription} />
 
             <Text style={s.label}>Fréquence</Text>
             <View style={s.freqRow}>
@@ -113,8 +116,8 @@ export default function AddHabitModal() {
               </Pressable>
             </View>
 
-            <TextInput style={s.input} placeholder="Durée en jours (optionnel, ex: 30)" keyboardType="number-pad" value={duration} onChangeText={setDuration} />
-            <TextInput style={s.input} placeholder="XP gagnés" keyboardType="number-pad" value={xp} onChangeText={setXp} />
+            <TextInput style={s.input} placeholder="Durée en jours (optionnel, ex: 30)" placeholderTextColor={t.placeholder} keyboardType="number-pad" value={duration} onChangeText={setDuration} />
+            <TextInput style={s.input} placeholder="XP gagnés" placeholderTextColor={t.placeholder} keyboardType="number-pad" value={xp} onChangeText={setXp} />
 
             <View style={s.toggleRow}>
               <View>
@@ -123,7 +126,7 @@ export default function AddHabitModal() {
                   {isPublic ? "Visible dans les Challenges — d'autres peuvent la rejoindre" : "Visible uniquement par toi"}
                 </Text>
               </View>
-              <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ false: "#e5e7eb", true: "#93c5fd" }} thumbColor={isPublic ? "#3b82f6" : "#f4f4f5"} />
+              <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ false: t.border, true: "#93c5fd" }} thumbColor={isPublic ? "#3b82f6" : "#f4f4f5"} />
             </View>
 
             {isPublic && packs.length > 0 && (
@@ -157,54 +160,36 @@ export default function AddHabitModal() {
         </View>
       </View>
     </Modal>
-
   );
 }
 
-const s = StyleSheet.create({
-  bg: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
-  sheet: { backgroundColor: "white", borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: "hidden" },
-  box: {
-    padding: 24,
-    gap: 12,
-    paddingBottom: 36,
-  },
-  title: { fontSize: 20, fontWeight: "700", marginBottom: 4 },
-  label: { fontSize: 13, color: "#888", fontWeight: "600" },
-  input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 14 },
-  freqRow: { flexDirection: "row", gap: 10 },
-  freqBtn: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    alignItems: "center",
-  },
-  freqActive: { backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
-  freqText: { color: "#555", fontWeight: "600" },
-  freqTextActive: { color: "white" },
-  toggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#f4f4f5",
-    borderRadius: 12,
-    padding: 14,
-    gap: 12,
-  },
-  toggleLabel: { fontSize: 15, fontWeight: "700" },
-  toggleSub: { fontSize: 12, color: "#888", marginTop: 2, maxWidth: 220 },
-  packSection: { gap: 8 },
-  packSub: { fontSize: 12, color: "#9ca3af" },
-  packRow: { flexDirection: "row", gap: 8 },
-  packBtn: { flex: 1, borderWidth: 1.5, borderColor: "#e5e7eb", borderRadius: 10, padding: 10, alignItems: "center", gap: 4 },
-  packDiff: { fontSize: 11, fontWeight: "700" },
-  packName: { fontSize: 12, fontWeight: "600", color: "#374151", textAlign: "center" },
-  actions: { flexDirection: "row", gap: 12, marginTop: 8 },
-  btn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
-  ghost: { backgroundColor: "#f1f1f1" },
-  ghostText: { color: "#555", fontWeight: "600" },
-  primary: { backgroundColor: "#3b82f6" },
-  primaryText: { color: "white", fontWeight: "700" },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    bg: { flex: 1, justifyContent: "flex-end", backgroundColor: t.overlay },
+    sheet: { backgroundColor: t.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: "hidden" },
+    box: { padding: 24, gap: 12, paddingBottom: 36 },
+    title: { fontSize: 20, fontWeight: "700", marginBottom: 4, color: t.text },
+    label: { fontSize: 13, color: t.textSecondary, fontWeight: "600" },
+    input: { borderWidth: 1, borderColor: t.inputBorder, borderRadius: 10, padding: 14, backgroundColor: t.input, color: t.text },
+    freqRow: { flexDirection: "row", gap: 10 },
+    freqBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: t.border, alignItems: "center" },
+    freqActive: { backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
+    freqText: { color: t.textSecondary, fontWeight: "600" },
+    freqTextActive: { color: "white" },
+    toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: t.surfaceAlt, borderRadius: 12, padding: 14, gap: 12 },
+    toggleLabel: { fontSize: 15, fontWeight: "700", color: t.text },
+    toggleSub: { fontSize: 12, color: t.textSecondary, marginTop: 2, maxWidth: 220 },
+    packSection: { gap: 8 },
+    packSub: { fontSize: 12, color: "#9ca3af" },
+    packRow: { flexDirection: "row", gap: 8 },
+    packBtn: { flex: 1, borderWidth: 1.5, borderColor: t.border, borderRadius: 10, padding: 10, alignItems: "center", gap: 4 },
+    packDiff: { fontSize: 11, fontWeight: "700" },
+    packName: { fontSize: 12, fontWeight: "600", color: t.text, textAlign: "center" },
+    actions: { flexDirection: "row", gap: 12, marginTop: 8 },
+    btn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
+    ghost: { backgroundColor: t.ghostBg },
+    ghostText: { color: t.ghostText, fontWeight: "600" },
+    primary: { backgroundColor: "#3b82f6" },
+    primaryText: { color: "white", fontWeight: "700" },
+  });
+}

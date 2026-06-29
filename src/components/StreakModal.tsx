@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { useEffect, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
@@ -50,7 +51,6 @@ function mascotMessage(streak: number): string {
   return "Waow, tu es absolument incroyable ! 🤩";
 }
 
-// Blue flame SVG — pixel-perfect inspired by the reference
 function BlueFlame({ size = 110 }: { size?: number }) {
   const w = size * 0.72;
   const h = size;
@@ -67,7 +67,6 @@ function BlueFlame({ size = 110 }: { size?: number }) {
           <Stop offset="100%" stopColor="#bfdbfe" stopOpacity="0.7" />
         </LinearGradient>
       </Defs>
-      {/* Outer flame */}
       <Path
         d="M 36 98
            C 18 92, 6 76, 8 58
@@ -80,7 +79,6 @@ function BlueFlame({ size = 110 }: { size?: number }) {
            C 65 76, 54 92, 36 98 Z"
         fill="url(#outerGrad)"
       />
-      {/* Inner lighter flame */}
       <Path
         d="M 36 88
            C 24 82, 18 70, 20 56
@@ -98,6 +96,8 @@ function BlueFlame({ size = 110 }: { size?: number }) {
 type Props = { visible: boolean; onClose: () => void };
 
 export default function StreakModal({ visible, onClose }: Props) {
+  const t = useTheme();
+  const s = makeStyles(t);
   const { session } = useAuth();
   const [logDates, setLogDates] = useState<Set<string>>(new Set());
   const weekDates = getWeekDates();
@@ -115,14 +115,12 @@ export default function StreakModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <View style={s.screen}>
 
-        {/* Flame hero */}
         <View style={s.heroSection}>
           <BlueFlame size={120} />
           <Text style={s.streakNumber}>{streak}</Text>
           <Text style={s.message}>{motivationalMessage(streak)}</Text>
         </View>
 
-        {/* Week row */}
         <View style={s.weekRow}>
           {weekDates.map((d, i) => {
             const key = dKey(d);
@@ -131,9 +129,7 @@ export default function StreakModal({ visible, onClose }: Props) {
             return (
               <View key={i} style={s.dayCol}>
                 <View style={[s.dayCircle, done && s.dayDone, isToday && !done && s.dayToday]}>
-                  {done
-                    ? <Text style={s.checkmark}>✓</Text>
-                    : null}
+                  {done ? <Text style={s.checkmark}>✓</Text> : null}
                 </View>
                 <Text style={[s.dayLabel, isToday && { color: "#3b82f6", fontWeight: "700" }]}>
                   {DAYS[i]}
@@ -143,7 +139,6 @@ export default function StreakModal({ visible, onClose }: Props) {
           })}
         </View>
 
-        {/* Mascot message */}
         <View style={s.mascotRow}>
           <Image
             source={streak > 0
@@ -157,7 +152,6 @@ export default function StreakModal({ visible, onClose }: Props) {
           </View>
         </View>
 
-        {/* Back button */}
         <Pressable style={s.backBtn} onPress={onClose}>
           <Text style={s.backBtnText}>Retour</Text>
         </Pressable>
@@ -167,52 +161,54 @@ export default function StreakModal({ visible, onClose }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "white",
-    paddingHorizontal: 32,
-    paddingTop: 90,
-    paddingBottom: 52,
-    justifyContent: "space-between",
-  },
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: t.background,
+      paddingHorizontal: 32,
+      paddingTop: 90,
+      paddingBottom: 52,
+      justifyContent: "space-between",
+    },
 
-  heroSection: { alignItems: "center", gap: 0 },
-  streakNumber: { fontSize: 88, fontWeight: "900", color: "#0f172a", lineHeight: 96, marginTop: -4 },
-  message: { fontSize: 15, color: "#64748b", fontWeight: "500", textAlign: "center", marginTop: 8, marginBottom: -40 },
+    heroSection: { alignItems: "center", gap: 0 },
+    streakNumber: { fontSize: 88, fontWeight: "900", color: t.text, lineHeight: 96, marginTop: -4 },
+    message: { fontSize: 15, color: t.textSecondary, fontWeight: "500", textAlign: "center", marginTop: 8, marginBottom: -40 },
 
-  weekRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 4 },
-  dayCol: { alignItems: "center", gap: 8 },
-  dayCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#e2e8f0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayDone: { backgroundColor: "#60a5fa" },
-  dayToday: { borderWidth: 2, borderColor: "#60a5fa", backgroundColor: "white" },
-  checkmark: { color: "white", fontSize: 20, fontWeight: "800" },
-  dayLabel: { fontSize: 12, color: "#94a3b8", fontWeight: "600" },
+    weekRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 4 },
+    dayCol: { alignItems: "center", gap: 8 },
+    dayCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: t.surfaceAlt,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dayDone: { backgroundColor: "#60a5fa" },
+    dayToday: { borderWidth: 2, borderColor: "#60a5fa", backgroundColor: t.background },
+    checkmark: { color: "white", fontSize: 20, fontWeight: "800" },
+    dayLabel: { fontSize: 12, color: t.textMuted, fontWeight: "600" },
 
-  mascotRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  mascotImg: { width: 64, height: 64 },
-  bubble: {
-    flex: 1,
-    backgroundColor: "#f1f5f9",
-    borderRadius: 18,
-    borderTopLeftRadius: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  bubbleText: { fontSize: 14, color: "#334155", lineHeight: 21, fontWeight: "500" },
+    mascotRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+    mascotImg: { width: 64, height: 64 },
+    bubble: {
+      flex: 1,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 18,
+      borderTopLeftRadius: 4,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    bubbleText: { fontSize: 14, color: t.textDark, lineHeight: 21, fontWeight: "500" },
 
-  backBtn: {
-    backgroundColor: "#1e293b",
-    borderRadius: 22,
-    paddingVertical: 20,
-    alignItems: "center",
-  },
-  backBtnText: { color: "white", fontSize: 17, fontWeight: "700" },
-});
+    backBtn: {
+      backgroundColor: t.actionBtn,
+      borderRadius: 22,
+      paddingVertical: 20,
+      alignItems: "center",
+    },
+    backBtnText: { color: t.actionBtnText, fontSize: 17, fontWeight: "700" },
+  });
+}

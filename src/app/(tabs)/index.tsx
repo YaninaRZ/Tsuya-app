@@ -7,6 +7,7 @@ import WeekStrip from "@/components/WeekStrip";
 import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { Ionicons } from "@expo/vector-icons";
 import CatCoin from "@/components/CatCoin";
 
@@ -91,6 +92,8 @@ const ENCOURAGE_MESSAGES = [
 ];
 
 export default function Home() {
+  const t = useTheme();
+  const s = makeStyles(t);
   const { session } = useAuth();
   const { refreshKey, openEditModal } = useHabits();
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -345,7 +348,7 @@ export default function Home() {
           renderItem={({ item }) => {
             const isDone = done.has(item.id);
             const isChallenge = !!item.source_habit_id;
-            const cardBg = isDone ? "#e0f2fe" : isChallenge ? "#ede9fe" : "#eff6ff";
+            const cardBg = isDone ? t.habitDone : isChallenge ? t.habitChallenge : t.habitNormal;
             const emoji = item.title.match(/^\p{Emoji}/u)?.[0] ?? (isChallenge ? "🏆" : "✨");
             const titleClean = item.title.replace(/^\p{Emoji}\s*/u, "");
 
@@ -457,61 +460,63 @@ export default function Home() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#dbeafe" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.headerBg },
+    center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // Blue header
-  header: { backgroundColor: "#dbeafe", paddingTop: 64, paddingHorizontal: 18, paddingBottom: 20 },
-  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  pageTitle: { fontSize: 26, fontWeight: "800", color: "#1e3a5f" },
-  topRight: { flexDirection: "row", gap: 8 },
-  coinPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.7)", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  coinText: { color: "#1e3a5f", fontWeight: "700", fontSize: 14 },
-  flamePill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.7)", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  flameText: { color: "#ea580c", fontWeight: "700", fontSize: 14 },
+    // Header
+    header: { backgroundColor: t.headerBg, paddingTop: 64, paddingHorizontal: 18, paddingBottom: 20 },
+    topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+    pageTitle: { fontSize: 26, fontWeight: "800", color: t.blueDark },
+    topRight: { flexDirection: "row", gap: 8 },
+    coinPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: t.pillBg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+    coinText: { color: t.blueDark, fontWeight: "700", fontSize: 14 },
+    flamePill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: t.pillBg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+    flameText: { color: "#ea580c", fontWeight: "700", fontSize: 14 },
 
-  // White content
-  content: { flex: 1, backgroundColor: "white", borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+    // Content area
+    content: { flex: 1, backgroundColor: t.card, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
 
-  // Filter pills
-  pillsRow: { flexDirection: "row", gap: 8, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 4 },
-  filterPill: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 24, backgroundColor: "#f1f5f9" },
-  filterPillActive: { backgroundColor: "#bfdbfe" },
-  filterPillText: { fontSize: 13, fontWeight: "600", color: "#64748b" },
-  filterPillTextActive: { color: "#1e3a5f", fontWeight: "800" },
+    // Filter pills
+    pillsRow: { flexDirection: "row", gap: 8, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 4 },
+    filterPill: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 24, backgroundColor: t.surfaceAlt },
+    filterPillActive: { backgroundColor: t.blueLight },
+    filterPillText: { fontSize: 13, fontWeight: "600", color: t.textSecondary },
+    filterPillTextActive: { color: t.blueDark, fontWeight: "800" },
 
-  // Empty state
-  emptyWrap: { alignItems: "center", marginTop: 48, gap: 10 },
-  emptyEmoji: { fontSize: 48 },
-  emptyText: { textAlign: "center", color: "#9ca3af", lineHeight: 22, fontSize: 14 },
+    // Empty state
+    emptyWrap: { alignItems: "center", marginTop: 48, gap: 10 },
+    emptyEmoji: { fontSize: 48 },
+    emptyText: { textAlign: "center", color: t.textMuted, lineHeight: 22, fontSize: 14 },
 
-  // Habit cards
-  card: { borderRadius: 22, padding: 16, flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 12 },
-  cardPast: { opacity: 0.6 },
-  arcWrap: { width: 62, height: 62, alignItems: "center", justifyContent: "center", position: "relative" },
-  arcCenter: { position: "absolute" },
-  cardBody: { flex: 1, gap: 3 },
-  cardFreq: { fontSize: 11, fontWeight: "600", color: "#64748b" },
-  cardTitle: { fontSize: 15, fontWeight: "800", color: "#0f172a", lineHeight: 21 },
-  cardTitleDone: { textDecorationLine: "line-through", color: "#9ca3af" },
-  cardProgress: { fontSize: 11, color: "#3b82f6", fontWeight: "600" },
-  circle: { width: 34, height: 34, borderRadius: 17, borderWidth: 2.5, borderColor: "#cbd5e1", alignItems: "center", justifyContent: "center" },
-  circleDone: { backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
-  packChip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start" },
-  packText: { fontSize: 11, fontWeight: "700" },
+    // Habit cards
+    card: { borderRadius: 22, padding: 16, flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 12 },
+    cardPast: { opacity: 0.6 },
+    arcWrap: { width: 62, height: 62, alignItems: "center", justifyContent: "center", position: "relative" },
+    arcCenter: { position: "absolute" },
+    cardBody: { flex: 1, gap: 3 },
+    cardFreq: { fontSize: 11, fontWeight: "600", color: t.textSecondary },
+    cardTitle: { fontSize: 15, fontWeight: "800", color: t.text, lineHeight: 21 },
+    cardTitleDone: { textDecorationLine: "line-through", color: "#9ca3af" },
+    cardProgress: { fontSize: 11, color: "#3b82f6", fontWeight: "600" },
+    circle: { width: 34, height: 34, borderRadius: 17, borderWidth: 2.5, borderColor: "#cbd5e1", alignItems: "center", justifyContent: "center" },
+    circleDone: { backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
+    packChip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start" },
+    packText: { fontSize: 11, fontWeight: "700" },
 
-  // Encouragement modal
-  encOverlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)", padding: 24 },
-  encCard: { backgroundColor: "white", borderRadius: 24, padding: 28, alignItems: "center", gap: 14, width: "100%" },
-  encMascot: { width: 100, height: 100 },
-  encTitle: { fontSize: 28, fontWeight: "900", color: "#0f172a" },
-  encMessage: { fontSize: 15, color: "#64748b", textAlign: "center", lineHeight: 22, fontWeight: "500" },
-  encBtn: { width: "100%", backgroundColor: "#0f172a", borderRadius: 28, paddingVertical: 16, alignItems: "center" },
-  encBtnText: { color: "white", fontSize: 16, fontWeight: "800" },
+    // Encouragement modal
+    encOverlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: t.overlay, padding: 24 },
+    encCard: { backgroundColor: t.card, borderRadius: 24, padding: 28, alignItems: "center", gap: 14, width: "100%" },
+    encMascot: { width: 100, height: 100 },
+    encTitle: { fontSize: 28, fontWeight: "900", color: t.text },
+    encMessage: { fontSize: 15, color: t.textSecondary, textAlign: "center", lineHeight: 22, fontWeight: "500" },
+    encBtn: { width: "100%", backgroundColor: t.actionBtn, borderRadius: 28, paddingVertical: 16, alignItems: "center" },
+    encBtnText: { color: t.actionBtnText, fontSize: 16, fontWeight: "800" },
 
-  // Swipe actions
-  editBox: { backgroundColor: "#7c3aed", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 22, gap: 4, marginBottom: 12 },
-  deleteBox: { backgroundColor: "#ef4444", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 22, gap: 4, marginBottom: 12 },
-  swipeLabel: { color: "white", fontWeight: "600", fontSize: 11 },
-});
+    // Swipe actions
+    editBox: { backgroundColor: "#7c3aed", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 22, gap: 4, marginBottom: 12 },
+    deleteBox: { backgroundColor: "#ef4444", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 22, gap: 4, marginBottom: 12 },
+    swipeLabel: { color: "white", fontWeight: "600", fontSize: 11 },
+  });
+}

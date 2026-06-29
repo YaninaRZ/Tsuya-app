@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { useFocusEffect } from "expo-router";
 
 const MONTH_NAMES = [
@@ -8,11 +9,13 @@ const MONTH_NAMES = [
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
 ];
 const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
-const STAR_SIZE = 110; // Identique à Heatmap (CELL + 76)
+const STAR_SIZE = 110;
 
 type LogRow = { completed_on: string; habits: { title: string } | null };
 
 export default function MonthCalendar() {
+  const t = useTheme();
+  const { s, ds } = makeStyles(t);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -29,19 +32,17 @@ export default function MonthCalendar() {
       .gte("completed_on", `${year}-${mm}-01`)
       .lte("completed_on", `${year}-${mm}-${String(lastDay).padStart(2, "0")}`);
     const c: Record<string, number> = {};
-    const t: Record<string, string[]> = {};
+    const ti: Record<string, string[]> = {};
     (data as LogRow[] ?? []).forEach((r) => {
       c[r.completed_on] = (c[r.completed_on] ?? 0) + 1;
-      if (!t[r.completed_on]) t[r.completed_on] = [];
-      t[r.completed_on].push(r.habits?.title ?? "Habitude supprimée");
+      if (!ti[r.completed_on]) ti[r.completed_on] = [];
+      ti[r.completed_on].push(r.habits?.title ?? "Habitude supprimée");
     });
     setCounts(c);
-    setTitles(t);
+    setTitles(ti);
   }, [year, month]);
 
-  // Refresh quand l'onglet Profil reprend le focus — même pattern que Heatmap
   useFocusEffect(useCallback(() => { fetchMonth(); }, [fetchMonth]));
-  // Refresh quand on navigue entre les mois
   useEffect(() => { fetchMonth(); }, [fetchMonth]);
 
   function prevMonth() {
@@ -124,7 +125,7 @@ export default function MonthCalendar() {
         </View>
       ))}
 
-      {/* Modal détail jour — centrée à l'écran */}
+      {/* Modal détail jour */}
       <Modal
         visible={detailDate !== null}
         animationType="fade"
@@ -162,35 +163,37 @@ export default function MonthCalendar() {
   );
 }
 
-const s = StyleSheet.create({
-  // Même structure que Heatmap.tsx
-  wrap: { width: "100%", gap: 4, marginVertical: 16 },
-  nav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  title: { fontSize: 16, fontWeight: "700" },
-  navBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#f1f5f9", alignItems: "center", justifyContent: "center" },
-  navArrow: { color: "#3b82f6", fontSize: 20, fontWeight: "700", lineHeight: 22 },
-  labelsRow: { flexDirection: "row", marginBottom: 2 },
-  dayLabel: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
-  weekRow: { flexDirection: "row" },
-  cell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 6 },
-  cellToday: { borderWidth: 2, borderColor: "#3b82f6" },
-  // Couleurs identiques à Heatmap.tsx
-  starBg: { position: "absolute", width: STAR_SIZE, height: STAR_SIZE, opacity: 0.85 },
-  dayNum: { position: "absolute", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
-  dayDone: { color: "#1e3a5f", fontWeight: "900", fontSize: 13 },
-  dayFuture: { color: "#d1d5db" },
-  dayToday: { color: "#3b82f6", fontWeight: "900" },
-});
+function makeStyles(t: Theme) {
+  const s = StyleSheet.create({
+    wrap: { width: "100%", gap: 4, marginVertical: 16 },
+    nav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+    title: { fontSize: 16, fontWeight: "700", color: t.text },
+    navBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: t.navBtn, alignItems: "center", justifyContent: "center" },
+    navArrow: { color: "#3b82f6", fontSize: 20, fontWeight: "700", lineHeight: 22 },
+    labelsRow: { flexDirection: "row", marginBottom: 2 },
+    dayLabel: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
+    weekRow: { flexDirection: "row" },
+    cell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 6 },
+    cellToday: { borderWidth: 2, borderColor: "#3b82f6" },
+    starBg: { position: "absolute", width: STAR_SIZE, height: STAR_SIZE, opacity: 0.85 },
+    dayNum: { position: "absolute", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
+    dayDone: { color: t.blueDark, fontWeight: "900", fontSize: 13 },
+    dayFuture: { color: t.textMuted },
+    dayToday: { color: "#3b82f6", fontWeight: "900" },
+  });
 
-const ds = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)", padding: 24 },
-  card: { backgroundColor: "white", borderRadius: 24, padding: 24, gap: 12, width: "100%" },
-  dateTitle: { fontSize: 18, fontWeight: "800", color: "#0f172a" },
-  countLine: { fontSize: 14, color: "#64748b", fontWeight: "500" },
-  empty: { fontSize: 14, color: "#94a3b8", fontStyle: "italic", paddingVertical: 8 },
-  item: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" },
-  starIcon: { width: 28, height: 28 },
-  habitTitle: { fontSize: 15, color: "#1e293b", fontWeight: "600", flex: 1 },
-  closeBtn: { backgroundColor: "#0f172a", borderRadius: 28, paddingVertical: 16, alignItems: "center", marginTop: 8 },
-  closeBtnText: { color: "white", fontSize: 16, fontWeight: "800" },
-});
+  const ds = StyleSheet.create({
+    overlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: t.overlay, padding: 24 },
+    card: { backgroundColor: t.card, borderRadius: 24, padding: 24, gap: 12, width: "100%" },
+    dateTitle: { fontSize: 18, fontWeight: "800", color: t.text },
+    countLine: { fontSize: 14, color: t.textSecondary, fontWeight: "500" },
+    empty: { fontSize: 14, color: t.textMuted, fontStyle: "italic", paddingVertical: 8 },
+    item: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: t.borderLight },
+    starIcon: { width: 28, height: 28 },
+    habitTitle: { fontSize: 15, color: t.text, fontWeight: "600", flex: 1 },
+    closeBtn: { backgroundColor: t.actionBtn, borderRadius: 28, paddingVertical: 16, alignItems: "center", marginTop: 8 },
+    closeBtnText: { color: t.actionBtnText, fontSize: 16, fontWeight: "800" },
+  });
+
+  return { s, ds };
+}

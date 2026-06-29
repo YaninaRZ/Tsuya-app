@@ -5,10 +5,12 @@ import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import CatCoin from "@/components/CatCoin";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { decode } from "base64-arraybuffer";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
+import { useTheme, type Theme } from "@/lib/theme";
+import { useThemeMode } from "@/context/ThemeContext";
 import {
   ActivityIndicator,
   Alert,
@@ -56,6 +58,9 @@ function bannerColors(pseudo: string): [string, string] {
 }
 
 export default function Profil() {
+  const t = useTheme();
+  const s = makeStyles(t);
+  const { isDark, toggle } = useThemeMode();
   const { session } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -185,6 +190,9 @@ export default function Profil() {
               </Pressable>
             </>
           )}
+          <Pressable style={s.bannerIconBtn} onPress={toggle}>
+            <Ionicons name={isDark ? "sunny" : "moon"} size={20} color="white" />
+          </Pressable>
           <Pressable style={s.bannerIconBtn} onPress={() => { setEditPseudo(pseudo); setEditBannerUrl(profile?.banner_url ?? null); setEditOpen(true); }}>
             <Ionicons name="settings-outline" size={20} color="white" />
           </Pressable>
@@ -355,6 +363,7 @@ export default function Profil() {
             <TextInput
               style={s.input}
               placeholder="Pseudo"
+              placeholderTextColor={t.placeholder}
               value={editPseudo}
               onChangeText={setEditPseudo}
               autoCapitalize="none"
@@ -418,111 +427,112 @@ export default function Profil() {
   );
 }
 
-const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#ffffff" },
-  container: { paddingBottom: 48 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: t.background },
+    container: { paddingBottom: 48 },
+    center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // Banner
-  banner: { height: 160, overflow: "hidden", position: "relative" },
-  deco1: { position: "absolute", width: 160, height: 160, borderRadius: 80, top: -40, right: -40 },
-  deco2: { position: "absolute", width: 100, height: 100, borderRadius: 50, bottom: -20, left: 40 },
-  deco3: { position: "absolute", width: 70, height: 70, borderRadius: 35, top: 20, left: -20 },
-  bannerTopRight: { position: "absolute", top: 52, right: 16, flexDirection: "row", gap: 8 },
-  bannerIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center", justifyContent: "center" },
+    // Banner
+    banner: { height: 160, overflow: "hidden", position: "relative" },
+    deco1: { position: "absolute", width: 160, height: 160, borderRadius: 80, top: -40, right: -40 },
+    deco2: { position: "absolute", width: 100, height: 100, borderRadius: 50, bottom: -20, left: 40 },
+    deco3: { position: "absolute", width: 70, height: 70, borderRadius: 35, top: 20, left: -20 },
+    bannerTopRight: { position: "absolute", top: 52, right: 16, flexDirection: "row", gap: 8 },
+    bannerIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center", justifyContent: "center" },
 
-  // Avatar row
-  avatarRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 20, marginTop: -38 },
-  avatarCircle: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", borderWidth: 4, borderColor: "white", overflow: "hidden" },
-  avatarInitial: { color: "white", fontSize: 32, fontWeight: "800" },
-  avatarCamBtn: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: "#3b82f6", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "white" },
-  avatarUploadRow: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: "#f8fafc", borderRadius: 14, padding: 12, marginBottom: 8 },
-  avatarCircleSmall: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  modifierBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1.5, borderColor: "#e5e7eb", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "white", marginBottom: 6 },
-  modifierText: { fontSize: 14, fontWeight: "700" },
+    // Avatar row
+    avatarRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 20, marginTop: -38 },
+    avatarCircle: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", borderWidth: 4, borderColor: t.background, overflow: "hidden" },
+    avatarInitial: { color: "white", fontSize: 32, fontWeight: "800" },
+    avatarCamBtn: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: "#3b82f6", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: t.background },
+    avatarUploadRow: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: t.surface, borderRadius: 14, padding: 12, marginBottom: 8 },
+    avatarCircleSmall: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+    modifierBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1.5, borderColor: t.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: t.card, marginBottom: 6 },
+    modifierText: { fontSize: 14, fontWeight: "700", color: t.text },
 
-  // Name
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, marginTop: 10 },
-  pseudo: { fontSize: 22, fontWeight: "800", color: "#0f172a" },
-  badgePill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1 },
-  badgePillText: { fontSize: 12, fontWeight: "700" },
+    // Name
+    nameRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, marginTop: 10 },
+    pseudo: { fontSize: 22, fontWeight: "800", color: t.text },
+    badgePill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1 },
+    badgePillText: { fontSize: 12, fontWeight: "700" },
 
-  // Pills
-  pillsRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20, marginTop: 8 },
-  pill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  pillText: { fontSize: 13, fontWeight: "700" },
+    // Pills
+    pillsRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20, marginTop: 8 },
+    pill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+    pillText: { fontSize: 13, fontWeight: "700" },
 
-  // Stats card
-  statsCard: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    backgroundColor: "#1e293b",
-    borderRadius: 18,
-    flexDirection: "row",
-    paddingVertical: 20,
-    paddingHorizontal: 8,
-  },
-  statItem: { flex: 1, alignItems: "center", gap: 6 },
-  statValue: { fontSize: 22, fontWeight: "800", color: "white" },
-  statLabel: { fontSize: 11, color: "#94a3b8", textAlign: "center", lineHeight: 15, fontWeight: "500" },
-  statDivider: { width: 1, backgroundColor: "#334155", marginVertical: 4 },
+    // Stats card (dark in both modes)
+    statsCard: {
+      marginHorizontal: 20,
+      marginTop: 16,
+      backgroundColor: "#1e293b",
+      borderRadius: 18,
+      flexDirection: "row",
+      paddingVertical: 20,
+      paddingHorizontal: 8,
+    },
+    statItem: { flex: 1, alignItems: "center", gap: 6 },
+    statValue: { fontSize: 22, fontWeight: "800", color: "white" },
+    statLabel: { fontSize: 11, color: "#94a3b8", textAlign: "center", lineHeight: 15, fontWeight: "500" },
+    statDivider: { width: 1, backgroundColor: "#334155", marginVertical: 4 },
 
-  // XP
-  xpSection: { paddingHorizontal: 20, marginTop: 16, gap: 8 },
-  xpHeader: { flexDirection: "row", justifyContent: "space-between" },
-  xpLabel: { fontSize: 12, color: "#64748b", fontWeight: "600" },
-  xpValue: { fontSize: 12, color: "#64748b", fontWeight: "600" },
-  xpBg: { height: 8, borderRadius: 4, backgroundColor: "#f1f5f9", overflow: "hidden" },
-  xpFill: { height: 8, borderRadius: 4 },
+    // XP
+    xpSection: { paddingHorizontal: 20, marginTop: 16, gap: 8 },
+    xpHeader: { flexDirection: "row", justifyContent: "space-between" },
+    xpLabel: { fontSize: 12, color: t.textSecondary, fontWeight: "600" },
+    xpValue: { fontSize: 12, color: t.textSecondary, fontWeight: "600" },
+    xpBg: { height: 8, borderRadius: 4, backgroundColor: t.surfaceAlt, overflow: "hidden" },
+    xpFill: { height: 8, borderRadius: 4 },
 
-  // Sections
-  section: { paddingHorizontal: 20, marginTop: 24 },
-  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#0f172a" },
-  seeAll: { fontSize: 13, fontWeight: "700", color: "#3b82f6" },
-  badgesRow: { flexDirection: "row", gap: 10, paddingRight: 4 },
-  badgesEmpty: { fontSize: 13, color: "#94a3b8", fontStyle: "italic" },
-  badgeCard: { alignItems: "center", gap: 6, backgroundColor: "#f9fafb", borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: "#e2e8f0", width: 110, position: "relative" },
-  badgeCardLocked: { backgroundColor: "#f8fafc", borderColor: "#f1f5f9" },
-  badgeImg: { width: 68, height: 68 },
-  badgeImgLocked: { opacity: 0.25 },
-  badgeLabel: { fontSize: 11, fontWeight: "700", color: "#0f172a", textAlign: "center" },
-  badgeLabelLocked: { color: "#cbd5e1" },
-  badgeIconWrap: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
-  badgeLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
+    // Sections
+    section: { paddingHorizontal: 20, marginTop: 24 },
+    sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+    sectionTitle: { fontSize: 16, fontWeight: "800", color: t.text },
+    seeAll: { fontSize: 13, fontWeight: "700", color: "#3b82f6" },
+    badgesRow: { flexDirection: "row", gap: 10, paddingRight: 4 },
+    badgesEmpty: { fontSize: 13, color: t.textMuted, fontStyle: "italic" },
+    badgeCard: { alignItems: "center", gap: 6, backgroundColor: t.surface, borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: t.border, width: 110, position: "relative" },
+    badgeCardLocked: { backgroundColor: t.surface, borderColor: t.borderLight },
+    badgeImg: { width: 68, height: 68 },
+    badgeImgLocked: { opacity: 0.25 },
+    badgeLabel: { fontSize: 11, fontWeight: "700", color: t.text, textAlign: "center" },
+    badgeLabelLocked: { color: "#cbd5e1" },
+    badgeIconWrap: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
 
-  // Activity view toggle
-  viewToggle: { flexDirection: "row", backgroundColor: "#f1f5f9", borderRadius: 10, padding: 2 },
-  viewToggleBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  viewToggleActive: { backgroundColor: "white", elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
-  viewToggleText: { fontSize: 13, fontWeight: "600", color: "#6b7280" },
-  viewToggleActiveText: { color: "#0f172a" },
+    // Activity view toggle
+    viewToggle: { flexDirection: "row", backgroundColor: t.surfaceAlt, borderRadius: 10, padding: 2 },
+    viewToggleBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+    viewToggleActive: { backgroundColor: t.card, elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+    viewToggleText: { fontSize: 13, fontWeight: "600", color: t.textSecondary },
+    viewToggleActiveText: { color: t.text },
 
-  // Sign out
-  signOutBtn: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 20, marginTop: 24, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, backgroundColor: "#fef2f2", borderWidth: 1, borderColor: "#fecaca" },
-  signOutText: { color: "#ef4444", fontWeight: "700", fontSize: 14 },
+    // Sign out
+    signOutBtn: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 20, marginTop: 24, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, backgroundColor: "#fef2f2", borderWidth: 1, borderColor: "#fecaca" },
+    signOutText: { color: "#ef4444", fontWeight: "700", fontSize: 14 },
 
-  // Modal
-  modalBg: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
-  modalScroll: { maxHeight: "90%", backgroundColor: "white", borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  modalBox: { padding: 24, gap: 10, paddingBottom: 36 },
-  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4 },
-  modalLabel: { fontSize: 12, fontWeight: "700", color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.5 },
-  input: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 10, padding: 14, fontSize: 15 },
-  modalActions: { flexDirection: "row", gap: 10, marginTop: 8 },
-  modalBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
-  ghost: { backgroundColor: "#f3f4f6" },
-  ghostText: { color: "#555", fontWeight: "600" },
-  primaryText: { color: "white", fontWeight: "700" },
+    // Modal
+    modalBg: { flex: 1, justifyContent: "flex-end", backgroundColor: t.overlay },
+    modalScroll: { maxHeight: "90%", backgroundColor: t.card, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+    modalBox: { padding: 24, gap: 10, paddingBottom: 36 },
+    modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 4, color: t.text },
+    modalLabel: { fontSize: 12, fontWeight: "700", color: t.textSecondary, textTransform: "uppercase", letterSpacing: 0.5 },
+    input: { borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: t.input, color: t.text },
+    modalActions: { flexDirection: "row", gap: 10, marginTop: 8 },
+    modalBtn: { flex: 1, padding: 14, borderRadius: 10, alignItems: "center" },
+    ghost: { backgroundColor: t.ghostBg },
+    ghostText: { color: t.ghostText, fontWeight: "600" },
+    primaryText: { color: "white", fontWeight: "700" },
 
-  // Banner picker
-  bannerPreview: { height: 80, borderRadius: 14, overflow: "hidden", backgroundColor: "#e5e7eb", position: "relative" },
-  clearBanner: { position: "absolute", top: 6, right: 6 },
-  uploadRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderColor: "#bfdbfe", borderRadius: 10, padding: 12, borderStyle: "dashed" },
-  uploadText: { color: "#3b82f6", fontWeight: "600", fontSize: 14 },
-  bannersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  bannerThumb: { width: "47%", borderRadius: 10, overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
-  bannerThumbSelected: { borderColor: "#6366f1" },
-  bannerThumbImg: { width: "100%", height: 50 },
-  bannerThumbName: { fontSize: 11, color: "#374151", fontWeight: "600", padding: 4, textAlign: "center" },
-});
+    // Banner picker
+    bannerPreview: { height: 80, borderRadius: 14, overflow: "hidden", backgroundColor: t.border, position: "relative" },
+    clearBanner: { position: "absolute", top: 6, right: 6 },
+    uploadRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderColor: "#bfdbfe", borderRadius: 10, padding: 12, borderStyle: "dashed" },
+    uploadText: { color: "#3b82f6", fontWeight: "600", fontSize: 14 },
+    bannersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    bannerThumb: { width: "47%", borderRadius: 10, overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
+    bannerThumbSelected: { borderColor: "#6366f1" },
+    bannerThumbImg: { width: "100%", height: 50 },
+    bannerThumbName: { fontSize: 11, color: t.text, fontWeight: "600", padding: 4, textAlign: "center" },
+  });
+}

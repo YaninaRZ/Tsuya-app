@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { useTheme, type Theme } from "@/lib/theme";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
@@ -31,6 +32,8 @@ function buildColumns() {
 }
 
 export default function Heatmap({ hideTitle = false }: { hideTitle?: boolean }) {
+  const t = useTheme();
+  const s = makeStyles(t);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const todayKey = key(new Date());
 
@@ -94,7 +97,6 @@ export default function Heatmap({ hideTitle = false }: { hideTitle?: boolean }) 
                   </Text>
                 </View>
               );
-
             })}
           </View>
         ))}
@@ -103,43 +105,45 @@ export default function Heatmap({ hideTitle = false }: { hideTitle?: boolean }) 
   );
 }
 
-const s = StyleSheet.create({
-  wrap: { width: "100%", gap: 10, marginVertical: 16 },
-  title: { fontSize: 16, fontWeight: "700" },
-  grid: { flexDirection: "row", gap: GAP },
-  cell: {
-    width: CELL,
-    height: CELL,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 6,
-  },
-  cellToday: {
-    borderWidth: 2,
-    borderColor: "#3b82f6",
-  },
-  starBg: {
-    position: "absolute",
-    width: CELL + 76,
-    height: CELL + 76,
-    opacity: 0.85,
-  },
-  dayNum: {
-    position: "absolute",
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#94a3b8",
-  },
-  dayDone: {
-    color: "#1e3a5f",
-    fontWeight: "900",
-    fontSize: 13,
-  },
-  dayFuture: {
-    color: "#d1d5db",
-  },
-  dayToday: {
-    color: "#3b82f6",
-    fontWeight: "900",
-  },
-});
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    wrap: { width: "100%", gap: 10, marginVertical: 16 },
+    title: { fontSize: 16, fontWeight: "700", color: t.text },
+    grid: { flexDirection: "row", gap: GAP },
+    cell: {
+      width: CELL,
+      height: CELL,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 6,
+    },
+    cellToday: {
+      borderWidth: 2,
+      borderColor: "#3b82f6",
+    },
+    starBg: {
+      position: "absolute",
+      width: CELL + 76,
+      height: CELL + 76,
+      opacity: 0.85,
+    },
+    dayNum: {
+      position: "absolute",
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#94a3b8",
+    },
+    dayDone: {
+      color: t.blueDark,
+      fontWeight: "900",
+      fontSize: 13,
+    },
+    dayFuture: {
+      color: t.textMuted,
+    },
+    dayToday: {
+      color: "#3b82f6",
+      fontWeight: "900",
+    },
+  });
+}
