@@ -158,7 +158,7 @@ export default function Shop() {
             <Text style={s.heroTitle}>Tes efforts méritent{"\n"}une récompense ! 🎉</Text>
             <Text style={s.heroSub}>Dépense tes coins pour te faire plaisir</Text>
           </View>
-          <Image source={require("../../../assets/images/happy-tsuya.png")} style={s.heroImg} resizeMode="contain" pointerEvents="none" />
+          <Image source={require("../../../assets/images/happy-tsuya.png")} style={s.heroImg} resizeMode="contain" />
         </View>
 
         {/* Section header */}
