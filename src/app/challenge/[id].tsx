@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,7 +28,7 @@ type ChallengeDetail = {
   author: { pseudo: string };
 };
 
-type Participant = { user_id: string; pseudo: string };
+type Participant = { user_id: string; pseudo: string; avatar_url: string | null };
 
 const AVATAR_COLORS = ["#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#14b8a6"];
 
@@ -37,11 +38,23 @@ function avatarColor(pseudo: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-function Avatar({ pseudo, size = 36, border = true }: { pseudo: string; size?: number; border?: boolean }) {
+function Avatar({ pseudo, avatarUrl, size = 36, border = true }: { pseudo: string; avatarUrl?: string | null; size?: number; border?: boolean }) {
+  const radius = size / 2;
+  if (avatarUrl) {
+    return (
+      <Image
+        source={{ uri: avatarUrl }}
+        style={[
+          { width: size, height: size, borderRadius: radius },
+          border && { borderWidth: 2, borderColor: "white" },
+        ]}
+      />
+    );
+  }
   return (
     <View style={[
       av.circle,
-      { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarColor(pseudo) },
+      { width: size, height: size, borderRadius: radius, backgroundColor: avatarColor(pseudo) },
       border && av.border,
     ]}>
       <Text style={[av.initial, { fontSize: size * 0.38 }]}>
@@ -110,7 +123,7 @@ export default function ChallengeDetail() {
           .single(),
         supabase
           .from("habits")
-          .select(`user_id, profile:profiles!habits_user_id_fkey(pseudo)`)
+          .select(`user_id, profile:profiles!habits_user_id_fkey(pseudo, avatar_url)`)
           .eq("source_habit_id", id)
           .eq("is_active", true),
       ]);
@@ -121,7 +134,7 @@ export default function ChallengeDetail() {
       setIsOwn(own);
       setChallenge({ ...data, author: (data as any).author ?? { pseudo: "?" } });
       setParticipants(
-        (parts ?? []).map((p: any) => ({ user_id: p.user_id, pseudo: p.profile?.pseudo ?? "?" }))
+        (parts ?? []).map((p: any) => ({ user_id: p.user_id, pseudo: p.profile?.pseudo ?? "?", avatar_url: p.profile?.avatar_url ?? null }))
       );
 
       if (!own) {
@@ -172,7 +185,7 @@ export default function ChallengeDetail() {
     setJoined(true);
     setParticipants((prev) => {
       if (prev.some((p) => p.user_id === session!.user.id)) return prev;
-      return [...prev, { user_id: session!.user.id, pseudo: "Toi" }];
+      return [...prev, { user_id: session!.user.id, pseudo: "Toi", avatar_url: null }];
     });
     triggerRefresh();
     Alert.alert("Challenge rejoint !", `« ${challenge.title} » est dans ta liste.`);
@@ -248,7 +261,7 @@ export default function ChallengeDetail() {
         <View style={s.avatarRow}>
           {shown.map((p, i) => (
             <View key={p.user_id} style={[s.avatarSlot, { zIndex: shown.length - i, marginLeft: i === 0 ? 0 : -10 }]}>
-              <Avatar pseudo={p.pseudo} size={36} />
+              <Avatar pseudo={p.pseudo} avatarUrl={p.avatar_url} size={36} />
             </View>
           ))}
           {extra > 0 && (
