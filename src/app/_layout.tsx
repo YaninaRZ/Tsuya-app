@@ -13,38 +13,30 @@ function RootNavigation() {
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
-  const [onboardingSeen, setOnboardingSeen] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (loading) return;
+
     AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
-      setOnboardingSeen(!!val);
-      setOnboardingChecked(true);
+      const seen = !!val;
+      const inAuthGroup = segments[0] === "(auth)";
+      const inOnboarding = segments[0] === "onboarding";
+
+      if (!seen && !inOnboarding) {
+        router.replace("/onboarding");
+      } else if (!session && !inAuthGroup && !inOnboarding) {
+        router.replace("/login");
+      } else if (session && (inAuthGroup || inOnboarding)) {
+        router.replace("/");
+      }
+
+      if (session) setupNotifications();
+      setReady(true);
     });
-  }, []);
+  }, [session, loading, segments]);
 
-  useEffect(() => {
-    if (loading || !onboardingChecked) return;
-    const inAuthGroup = segments[0] === "(auth)";
-    const inOnboarding = segments[0] === "onboarding";
-
-    if (!onboardingSeen && !inOnboarding) {
-      router.replace("/onboarding");
-      return;
-    }
-
-    if (!session && !inAuthGroup && !inOnboarding) {
-      router.replace("/login");
-    } else if (session && (inAuthGroup || inOnboarding)) {
-      router.replace("/");
-    }
-
-    if (session) {
-      setupNotifications();
-    }
-  }, [session, loading, segments, onboardingChecked, onboardingSeen]);
-
-  if (loading || !onboardingChecked) {
+  if (loading || !ready) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator />
