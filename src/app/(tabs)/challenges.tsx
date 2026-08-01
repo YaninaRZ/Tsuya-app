@@ -28,7 +28,7 @@ type Challenge = {
   isOwn: boolean;
   joined: boolean;
   hasLeft: boolean;
-  participants: { user_id: string; pseudo: string }[];
+  participants: { user_id: string; pseudo: string; avatar_url: string | null }[];
 };
 
 const AVATAR_COLORS = ["#6366f1","#ec4899","#f97316","#10b981","#3b82f6","#8b5cf6","#14b8a6"];
@@ -38,7 +38,10 @@ function avatarColor(pseudo: string) {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
-function Avatar({ pseudo, size = 26 }: { pseudo: string; size?: number }) {
+function Avatar({ pseudo, avatarUrl, size = 26 }: { pseudo: string; avatarUrl?: string | null; size?: number }) {
+  if (avatarUrl) {
+    return <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 1.5, borderColor: "white" }} />;
+  }
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: avatarColor(pseudo), borderWidth: 1.5, borderColor: "white", alignItems: "center", justifyContent: "center" }}>
       <Text style={{ color: "white", fontSize: size * 0.36, fontWeight: "700" }}>{pseudo.charAt(0).toUpperCase()}</Text>
@@ -63,7 +66,7 @@ export default function Challenges() {
         .select(`id, title, description, xp_reward, frequency, duration_days, user_id, author:profiles!habits_user_id_fkey(pseudo)`)
         .eq("is_public", true).eq("is_active", true).order("created_at", { ascending: false }),
       supabase.from("habits").select("source_habit_id").eq("user_id", session?.user.id).eq("is_active", true).not("source_habit_id", "is", null),
-      supabase.from("habits").select(`source_habit_id, user_id, profile:profiles!habits_user_id_fkey(pseudo)`).not("source_habit_id", "is", null).eq("is_active", true),
+      supabase.from("habits").select(`source_habit_id, user_id, profile:profiles!habits_user_id_fkey(pseudo, avatar_url)`).not("source_habit_id", "is", null).eq("is_active", true),
       supabase.from("challenge_leaves").select("challenge_id").eq("user_id", session?.user.id),
     ]);
     if (error) { Alert.alert("Erreur", error.message); setLoading(false); return; }
@@ -72,10 +75,10 @@ export default function Challenges() {
 
     const myJoined = new Set((myHabits ?? []).map((h) => h.source_habit_id));
     const myLeftSet = new Set((myLeaves ?? []).map((l) => l.challenge_id));
-    const participantsByHabit: Record<string, { user_id: string; pseudo: string }[]> = {};
+    const participantsByHabit: Record<string, { user_id: string; pseudo: string; avatar_url: string | null }[]> = {};
     for (const row of (allJoined ?? []) as any[]) {
       if (!participantsByHabit[row.source_habit_id]) participantsByHabit[row.source_habit_id] = [];
-      participantsByHabit[row.source_habit_id].push({ user_id: row.user_id, pseudo: row.profile?.pseudo ?? "?" });
+      participantsByHabit[row.source_habit_id].push({ user_id: row.user_id, pseudo: row.profile?.pseudo ?? "?", avatar_url: row.profile?.avatar_url ?? null });
     }
     setChallenges((publicHabits ?? []).map((h: any) => ({
       ...h,
@@ -166,7 +169,7 @@ export default function Challenges() {
                 <View style={s.partRow}>
                   {item.participants.slice(0, 3).map((p, i) => (
                     <View key={p.user_id} style={{ marginLeft: i === 0 ? 0 : -8, zIndex: 3 - i }}>
-                      <Avatar pseudo={p.pseudo} size={26} />
+                      <Avatar pseudo={p.pseudo} avatarUrl={p.avatar_url} size={26} />
                     </View>
                   ))}
                   {item.participants.length > 0 && (
