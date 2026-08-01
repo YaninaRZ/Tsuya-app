@@ -70,6 +70,7 @@ export default function Shop() {
   const [deleteTarget, setDeleteTarget] = useState<Reward | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!session?.user.id) return;
     const [{ data: rewardsData }, { data: profile }] = await Promise.all([
       supabase.from("rewards").select("id, title, description, cost, is_claimed").eq("user_id", session?.user.id).order("created_at", { ascending: false }),
       supabase.from("profiles").select("coins").eq("id", session?.user.id).single(),

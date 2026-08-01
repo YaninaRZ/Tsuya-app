@@ -60,6 +60,7 @@ export default function Challenges() {
   const [joining, setJoining] = useState<string | null>(null);
 
   const fetchChallenges = useCallback(async () => {
+    if (!session?.user.id) { setLoading(false); return; }
     setLoading(true);
     const [{ data: publicHabits, error }, { data: myHabits }, { data: allJoined }, { data: myLeaves }] = await Promise.all([
       supabase.from("habits")

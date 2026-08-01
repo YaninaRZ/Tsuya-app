@@ -43,6 +43,7 @@ export default function BadgesPage() {
   const [preview, setPreview] = useState<BadgeDef | null>(null);
 
   const fetchBadges = useCallback(async () => {
+    if (!session?.user.id) return;
     const [{ data: dbBadges }, { data: earned }] = await Promise.all([
       supabase.from("badges").select("key, label, description, image_color_url, image_grey_url").order("created_at"),
       supabase.from("user_badges").select("badge_key").eq("user_id", session?.user.id),

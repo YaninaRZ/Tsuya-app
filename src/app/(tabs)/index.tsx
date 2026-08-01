@@ -198,6 +198,7 @@ export default function Home() {
 
   const fetchHabits = useCallback(
     async (date: string) => {
+      if (!session?.user.id) return;
       const { data, error } = await supabase
         .from("habits")
         .select(
@@ -267,6 +268,7 @@ export default function Home() {
   );
 
   const fetchProfile = useCallback(async () => {
+    if (!session?.user.id) return;
     const { data } = await supabase
       .from("profiles")
       .select("level, coins")
