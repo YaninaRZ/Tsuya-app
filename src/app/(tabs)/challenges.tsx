@@ -195,7 +195,7 @@ export default function Challenges() {
                     <Pressable style={[s.actionBtn, s.btnJoin]} onPress={() => join(item)} disabled={joining === item.id}>
                       {joining === item.id
                         ? <ActivityIndicator color="white" size="small" />
-                        : <Text style={[s.actionBtnText, { color: "white" }]}>Rejoindre</Text>}
+                        : <Text style={[s.actionBtnText, { color: t.actionBtnText }]}>Rejoindre</Text>}
                     </Pressable>
                   )}
 

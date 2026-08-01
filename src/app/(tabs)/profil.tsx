@@ -188,12 +188,18 @@ export default function Profil() {
               <Pressable style={s.bannerIconBtn} onPress={() => router.push("/admin/banners" as any)}>
                 <Ionicons name="image-outline" size={20} color="white" />
               </Pressable>
+              <Pressable style={s.bannerIconBtn} onPress={() => router.push("/admin/badges" as any)}>
+                <Ionicons name="ribbon-outline" size={20} color="white" />
+              </Pressable>
+              <Pressable style={s.bannerIconBtn} onPress={() => router.push("/admin/users" as any)}>
+                <Ionicons name="people-outline" size={20} color="white" />
+              </Pressable>
             </>
           )}
           <Pressable style={s.bannerIconBtn} onPress={toggle}>
             <Ionicons name={isDark ? "sunny" : "moon"} size={20} color="white" />
           </Pressable>
-          <Pressable style={s.bannerIconBtn} onPress={() => { setEditPseudo(pseudo); setEditBannerUrl(profile?.banner_url ?? null); setEditOpen(true); }}>
+          <Pressable style={s.bannerIconBtn} onPress={() => router.push("/settings" as any)}>
             <Ionicons name="settings-outline" size={20} color="white" />
           </Pressable>
         </View>
@@ -325,12 +331,6 @@ export default function Profil() {
         </View>
         {calView === "heatmap" ? <Heatmap hideTitle /> : <MonthCalendar />}
       </View>
-
-      {/* Sign out */}
-      <Pressable style={s.signOutBtn} onPress={() => supabase.auth.signOut()}>
-        <Ionicons name="log-out-outline" size={16} color="#ef4444" />
-        <Text style={s.signOutText}>Se déconnecter</Text>
-      </Pressable>
 
       {/* Edit modal */}
       <Modal visible={editOpen} animationType="slide" transparent onRequestClose={() => setEditOpen(false)}>

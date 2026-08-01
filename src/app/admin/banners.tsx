@@ -47,8 +47,8 @@ export default function AdminBanners() {
     const path = `predefined/${Date.now()}.${ext}`;
 
     const response = await fetch(asset.uri);
-    const blob = await response.blob();
-    const { error: uploadErr } = await supabase.storage.from("banners").upload(path, blob, { contentType: `image/${ext}` });
+    const arrayBuffer = await response.arrayBuffer();
+    const { error: uploadErr } = await supabase.storage.from("banners").upload(path, arrayBuffer, { contentType: `image/${ext}` });
     if (uploadErr) { Alert.alert("Erreur upload", uploadErr.message); setUploading(false); return; }
 
     const { data: { publicUrl } } = supabase.storage.from("banners").getPublicUrl(path);
@@ -67,7 +67,7 @@ export default function AdminBanners() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.back}>
+        <Pressable onPress={() => router.push("/(tabs)/profil" as any)} style={s.back}>
           <Ionicons name="arrow-back" size={22} color="#6366f1" />
         </Pressable>
         <Text style={s.title}>Banners prédéfinis</Text>
