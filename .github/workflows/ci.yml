@@ -55,9 +55,8 @@ jobs:
       - name: EAS Build (iOS production)
         run: eas build --platform ios --profile production --non-interactive
 
-      # ⏳ Activé une fois le compte Apple Developer validé
-      # - name: EAS Submit vers TestFlight
-      #   run: eas submit --platform ios --profile production --non-interactive
-      #   env:
-      #     EXPO_APPLE_ID: ${{ secrets.APPLE_ID }}
-      #     EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      - name: EAS Submit vers TestFlight
+        run: eas submit --platform ios --profile production --non-interactive
+        env:
+          EXPO_APPLE_ID: ${{ secrets.APPLE_ID }}
+          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
