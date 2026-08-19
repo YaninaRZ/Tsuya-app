@@ -1,0 +1,25 @@
+name: Tests Jest
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  tests:
+    name: Tests unitaires Jest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Exécuter les tests unitaires
+        run: npx jest --ci --coverage --coverageReporters=text-summary
