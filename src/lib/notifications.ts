@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 // On charge le module dynamiquement pour éviter le crash en dev
 let N: typeof NotificationsType | null = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   N = require("expo-notifications");
   N!.setNotificationHandler({
     handleNotification: async () => ({
