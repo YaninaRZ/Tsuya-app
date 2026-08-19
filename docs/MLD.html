@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Tsuya — MLD complet (base réelle Supabase)</title>
+<style>
+  :root {
+    --bg: #04294f;
+    --panel: #053664;
+    --panel-2: #0c4a75;
+    --panel-3: #11577f;
+    --cream: #f0dfc8;
+    --cream-dim: #cdbfa8;
+    --warn: #e7a94c;
+    --danger: #e0674f;
+    --ok: #7fbf8f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: "Segoe UI", "Anthropic Sans", sans-serif;
+    line-height: 1.5;
+    padding: 32px 20px 80px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 {
+    font-size: 28px;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: var(--cream-dim);
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+  h2 {
+    font-size: 20px;
+    border-bottom: 1px solid var(--panel-3);
+    padding-bottom: 8px;
+    margin-top: 48px;
+  }
+  #mld-wrap {
+    background: var(--panel);
+    padding: 28px 20px;
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+  #erd { min-width: 900px; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 13px;
+    color: var(--cream-dim);
+    margin-top: 14px;
+    padding: 0 4px;
+  }
+  .legend span b { color: var(--cream); }
+
+  .note-box {
+    background: var(--panel-2);
+    border-left: 4px solid var(--warn);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  .note-box.danger { border-left-color: var(--danger); }
+  .note-box.ok { border-left-color: var(--ok); }
+  .note-box b { color: var(--warn); }
+  .note-box.danger b { color: var(--danger); }
+  .note-box.ok b { color: var(--ok); }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .card {
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 16px 18px;
+    border: 1px solid var(--panel-3);
+  }
+  .card h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--cream);
+  }
+  .card h3 code {
+    background: var(--panel-3);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 13px;
+  }
+  .card p {
+    margin: 0 0 10px;
+    font-size: 13.5px;
+    color: var(--cream-dim);
+  }
+  .card ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+  }
+  .card ul li { margin-bottom: 4px; }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tag.new { background: var(--ok); color: #06371f; }
+  .tag.gap { background: var(--danger); color: #3a0d05; }
+
+  table.dict {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 14px;
+  }
+  table.dict th, table.dict td {
+    border: 1px solid var(--panel-3);
+    padding: 7px 10px;
+    text-align: left;
+  }
+  table.dict th {
+    background: var(--panel-3);
+    color: var(--cream);
+  }
+  table.dict tr:nth-child(even) td { background: var(--panel); }
+  table.dict tr:nth-child(odd) td { background: var(--panel-2); }
+  table.dict td.pk { color: var(--ok); font-weight: 600; }
+  table.dict td.fk { color: #9cc8e8; }
+  table.dict caption {
+    text-align: left;
+    caption-side: top;
+    font-weight: 700;
+    color: var(--cream);
+    padding: 10px 0 4px;
+    font-size: 14.5px;
+  }
+  .scroll-x { overflow-x: auto; }
+  footer {
+    margin-top: 60px;
+    font-size: 12px;
+    color: var(--cream-dim);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Tsuya — Modèle Logique de Données (réel)</h1>
+  <p class="subtitle">
+    Généré à partir du schéma réellement présent dans Supabase (requêtes <code>information_schema</code> +
+    <code>pg_policies</code> exécutées le 06/07), pas depuis la maquette initiale. Corrige et complète
+    le MLD présenté en soutenance (slide 21) sur 3 tables manquantes et plusieurs colonnes non documentées.
+  </p>
+
+  <h2>Diagramme entité-association</h2>
+  <div id="mld-wrap"><div id="erd"></div></div>
+  <div class="legend">
+    <span><b>||</b> = exactement un</span>
+    <span><b>|o</b> = zéro ou un</span>
+    <span><b>o{</b> = zéro ou plusieurs</span>
+    <span><b>|{</b> = un ou plusieurs</span>
+    <span style="color:#9cc8e8"><b>Bleu clair</b> dans le dictionnaire = clé étrangère (FK)</span>
+    <span style="color:#7fbf8f"><b>Vert</b> = clé primaire (PK)</span>
+  </div>
+
+
+
+
+
+<script type="module">
+  import mermaid from "https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs";
+  await document.fonts.ready;
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "base",
+    fontFamily: '"Anthropic Sans", sans-serif',
+    themeVariables: {
+      fontSize: "13px",
+      fontFamily: '"Anthropic Sans", sans-serif',
+      background: "#053664",
+      primaryColor: "#f0dfc8",
+      primaryTextColor: "#053664",
+      primaryBorderColor: "#f0dfc8",
+      lineColor: "#f0dfc8",
+      secondaryColor: "#11577f",
+      tertiaryColor: "#0c4a75",
+      attributeBackgroundColorOdd: "#11577f",
+      attributeBackgroundColorEven: "#0c4a75",
+      textColor: "#f0dfc8",
+      nodeBorder: "#f0dfc8",
+    },
+  });
+  const src = `erDiagram
+  PROFILES {
+    uuid id PK
+    text pseudo
+    text role
+    int xp_total
+    int level
+    int coins
+    text status
+    timestamp deleted_at
+    timestamp created_at
+    text banner_url
+    text avatar_url
+  }
+  HABITS {
+    uuid id PK
+    uuid user_id FK
+    text title
+    text description
+    text frequency
+    int xp_reward
+    text icon
+    text color
+    boolean is_active
+    timestamp created_at
+    int duration_days
+    boolean is_public
+    uuid source_habit_id FK
+    date start_date
+    uuid reward_pack_id FK
+    text category
+    time reminder_time
+  }
+  HABIT_LOGS {
+    uuid id PK
+    uuid habit_id FK
+    uuid user_id FK
+    date completed_on
+    int xp_earned
+    timestamp created_at
+  }
+  XP_LOGS {
+    uuid id PK
+    uuid user_id FK
+    uuid checkin_id
+    int xp_gained
+    text reason
+    timestamp created_at
+  }
+  REWARDS {
+    uuid id PK
+    uuid user_id FK
+    text title
+    text description
+    int cost
+    boolean is_claimed
+    timestamp created_at
+  }
+  REWARD_PACKS {
+    uuid id PK
+    text name
+    text description
+    text difficulty
+    boolean is_active
+    timestamp created_at
+  }
+  REWARD_PACK_ITEMS {
+    uuid id PK
+    uuid pack_id FK
+    text label
+    text type
+    int value
+    int weight
+  }
+  USER_BADGES {
+    uuid id PK
+    uuid user_id FK
+    int level
+    text badge_key
+    timestamp earned_at
+  }
+  CHALLENGE_LEAVES {
+    uuid user_id PK
+    uuid challenge_id FK
+    timestamp left_at
+  }
+  HABIT_INVITATIONS {
+    uuid id PK
+    uuid habit_id FK
+    uuid from_user_id FK
+    uuid to_user_id FK
+    text status
+    timestamp created_at
+  }
+  PROFILE_BANNERS {
+    uuid id PK
+    text name
+    text url
+    timestamp created_at
+  }
+  PROFILES ||--o{ HABITS : ""
+  PROFILES ||--o{ HABIT_LOGS : ""
+  PROFILES ||--o{ XP_LOGS : ""
+  PROFILES ||--o{ REWARDS : ""
+  PROFILES ||--o{ USER_BADGES : ""
+  PROFILES ||--o{ HABIT_INVITATIONS : "envoie"
+  PROFILES ||--o{ HABIT_INVITATIONS : "recoit"
+  HABITS ||--o{ HABIT_LOGS : ""
+  HABITS ||--o{ HABIT_INVITATIONS : ""
+  HABITS |o--o{ HABITS : "derive de"
+  HABITS ||--o{ CHALLENGE_LEAVES : ""
+  REWARD_PACKS ||--o{ REWARD_PACK_ITEMS : ""
+  REWARD_PACKS |o--o{ HABITS : ""`;
+  const { svg } = await mermaid.render("erd-svg", src);
+  document.getElementById("erd").innerHTML = svg;
+
+  document.querySelectorAll("#erd svg.erDiagram .node").forEach((node) => {
+    const firstPath = node.querySelector("path[d]");
+    if (!firstPath) return;
+    const d = firstPath.getAttribute("d");
+    const nums = d.match(/-?[\d.]+/g)?.map(Number);
+    if (!nums || nums.length < 8) return;
+    const xs = [nums[0], nums[2], nums[4], nums[6]];
+    const ys = [nums[1], nums[3], nums[5], nums[7]];
+    const x = Math.min(...xs),
+      y = Math.min(...ys);
+    const w = Math.max(...xs) - x,
+      h = Math.max(...ys) - y;
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", x);
+    rect.setAttribute("y", y);
+    rect.setAttribute("width", w);
+    rect.setAttribute("height", h);
+    rect.setAttribute("rx", "8");
+    for (const a of ["fill", "stroke", "stroke-width", "class", "style"]) {
+      if (firstPath.hasAttribute(a))
+        rect.setAttribute(a, firstPath.getAttribute(a));
+    }
+    firstPath.replaceWith(rect);
+  });
+  document
+    .querySelectorAll(
+      "#erd svg.erDiagram .row-rect-odd path, #erd svg.erDiagram .row-rect-even path",
+    )
+    .forEach((p) => {
+      p.setAttribute("stroke", "none");
+    });
+  document
+    .querySelectorAll(
+      "#erd svg.erDiagram .edgeLabel, #erd svg.erDiagram .labelBkg",
+    )
+    .forEach((el) => el.remove());
+</script>
+</body>
+</html>
