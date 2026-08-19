@@ -9,7 +9,9 @@ const MONTH_NAMES = [
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
 ];
 const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
-const STAR_SIZE = 110;
+const CELL = 34;
+const GAP = 3;
+const STAR_SIZE = CELL + 76;
 
 type LogRow = { completed_on: string; habits: { title: string } | null };
 
@@ -165,15 +167,15 @@ export default function MonthCalendar() {
 
 function makeStyles(t: Theme) {
   const s = StyleSheet.create({
-    wrap: { width: "100%", gap: 4, marginVertical: 16 },
-    nav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+    wrap: { width: "100%", gap: 10, marginVertical: 16 },
+    nav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
     title: { fontSize: 16, fontWeight: "700", color: t.text },
     navBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: t.navBtn, alignItems: "center", justifyContent: "center" },
     navArrow: { color: "#3b82f6", fontSize: 20, fontWeight: "700", lineHeight: 22 },
-    labelsRow: { flexDirection: "row", marginBottom: 2 },
-    dayLabel: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
-    weekRow: { flexDirection: "row" },
-    cell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 6 },
+    labelsRow: { flexDirection: "row", gap: GAP, marginBottom: 2 },
+    dayLabel: { width: CELL, textAlign: "center", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
+    weekRow: { flexDirection: "row", gap: GAP, marginBottom: GAP },
+    cell: { width: CELL, height: CELL, alignItems: "center", justifyContent: "center", borderRadius: 6 },
     cellToday: { borderWidth: 2, borderColor: "#3b82f6" },
     starBg: { position: "absolute", width: STAR_SIZE, height: STAR_SIZE, opacity: 0.85 },
     dayNum: { position: "absolute", fontSize: 11, fontWeight: "700", color: "#94a3b8" },
