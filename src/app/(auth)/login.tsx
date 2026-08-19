@@ -42,6 +42,8 @@ export default function Login() {
         placeholder="Mot de passe"
         placeholderTextColor={t.placeholder}
         secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
         value={password}
         onChangeText={setPassword}
       />
