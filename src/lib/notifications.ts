@@ -2,11 +2,11 @@ import type * as NotificationsType from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
-// expo-notifications nécessite un build natif (pas Expo Go)
+// RISQUE : expo-notifications est un module natif absent sous Expo Go
+// CRITICITÉ : HAUTE (crash au démarrage si require() échoue)
 // On charge le module dynamiquement pour éviter le crash en dev
 let N: typeof NotificationsType | null = null;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   N = require("expo-notifications");
   N!.setNotificationHandler({
     handleNotification: async () => ({
@@ -21,6 +21,7 @@ try {
   // Expo Go : module natif absent, les notifications sont désactivées
 }
 
+// Constantes nommées (pas de "magic strings" ni "magic numbers")
 const CHANNEL_ID = "tsuya-main";
 const ID_MORNING = "tsuya-morning";
 const ID_EVENING = "tsuya-evening";
@@ -100,6 +101,7 @@ export async function setupNotifications(): Promise<boolean> {
   return false;
 }
 
+// Fonction interne privée (non exportée) — encapsulation
 async function scheduleDailyReminders() {
   const prefs = await getNotifPrefs();
   await applyNotifPrefs(prefs);
