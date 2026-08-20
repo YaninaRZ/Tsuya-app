@@ -67,7 +67,7 @@ export const Colors = {
   },
 } as const;
 
-export type Theme = typeof Colors.light;
+export type Theme = { readonly [K in keyof typeof Colors.light]: string };
 
 export function useTheme(): Theme {
   const { isDark } = useThemeMode();

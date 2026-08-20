@@ -258,12 +258,18 @@ export default function Profil() {
               <Pressable style={s.bannerIconBtn} onPress={() => router.push("/admin/banners" as any)}>
                 <Ionicons name="image-outline" size={20} color="white" />
               </Pressable>
+              <Pressable style={s.bannerIconBtn} onPress={() => router.push("/admin/badges" as any)}>
+                <Ionicons name="ribbon-outline" size={20} color="white" />
+              </Pressable>
+              <Pressable style={s.bannerIconBtn} onPress={() => router.push("/admin/users" as any)}>
+                <Ionicons name="people-outline" size={20} color="white" />
+              </Pressable>
             </>
           )}
           <Pressable style={s.bannerIconBtn} onPress={toggle}>
             <Ionicons name={isDark ? "sunny" : "moon"} size={20} color="white" />
           </Pressable>
-          <Pressable style={s.bannerIconBtn} onPress={() => { setEditPseudo(pseudo); setEditBannerUrl(profile?.banner_url ?? null); setEditOpen(true); }}>
+          <Pressable style={s.bannerIconBtn} onPress={() => router.push("/settings" as any)}>
             <Ionicons name="settings-outline" size={20} color="white" />
           </Pressable>
         </View>
@@ -402,11 +408,6 @@ export default function Profil() {
         <Text style={s.exportText}>{exporting ? "Export en cours..." : "Exporter mes données (CSV)"}</Text>
       </Pressable>
 
-      {/* Sign out */}
-      <Pressable style={s.signOutBtn} onPress={() => supabase.auth.signOut()}>
-        <Ionicons name="log-out-outline" size={16} color="#ef4444" />
-        <Text style={s.signOutText}>Se déconnecter</Text>
-      </Pressable>
 
       {/* Edit modal */}
       <Modal visible={editOpen} animationType="slide" transparent onRequestClose={() => setEditOpen(false)}>
@@ -586,10 +587,6 @@ function makeStyles(t: Theme) {
     // Export
     exportBtn: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 20, marginTop: 12, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, backgroundColor: "#eff6ff", borderWidth: 1, borderColor: "#bfdbfe" },
     exportText: { color: "#3b82f6", fontWeight: "700", fontSize: 14 },
-
-    // Sign out
-    signOutBtn: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 20, marginTop: 12, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, backgroundColor: "#fef2f2", borderWidth: 1, borderColor: "#fecaca" },
-    signOutText: { color: "#ef4444", fontWeight: "700", fontSize: 14 },
 
     // Modal
     modalBg: { flex: 1, justifyContent: "flex-end", backgroundColor: t.overlay },

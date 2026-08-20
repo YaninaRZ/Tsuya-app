@@ -2,12 +2,14 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { useAuth } from "@/context/AuthContext";
 import { useHabits } from "@/context/HabitsContext";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/lib/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,7 +28,7 @@ type ChallengeDetail = {
   author: { pseudo: string };
 };
 
-type Participant = { user_id: string; pseudo: string };
+type Participant = { user_id: string; pseudo: string; avatar_url: string | null };
 
 const AVATAR_COLORS = ["#6366f1", "#ec4899", "#f97316", "#10b981", "#3b82f6", "#8b5cf6", "#14b8a6"];
 
@@ -36,11 +38,23 @@ function avatarColor(pseudo: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-function Avatar({ pseudo, size = 36, border = true }: { pseudo: string; size?: number; border?: boolean }) {
+function Avatar({ pseudo, avatarUrl, size = 36, border = true }: { pseudo: string; avatarUrl?: string | null; size?: number; border?: boolean }) {
+  const radius = size / 2;
+  if (avatarUrl) {
+    return (
+      <Image
+        source={{ uri: avatarUrl }}
+        style={[
+          { width: size, height: size, borderRadius: radius },
+          border && { borderWidth: 2, borderColor: "white" },
+        ]}
+      />
+    );
+  }
   return (
     <View style={[
       av.circle,
-      { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarColor(pseudo) },
+      { width: size, height: size, borderRadius: radius, backgroundColor: avatarColor(pseudo) },
       border && av.border,
     ]}>
       <Text style={[av.initial, { fontSize: size * 0.38 }]}>
@@ -57,6 +71,36 @@ const av = StyleSheet.create({
 });
 
 export default function ChallengeDetail() {
+  const colors = useTheme();
+  const s = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: 24, paddingTop: 60, gap: 24 },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background },
+    backBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
+    backText: { color: colors.purple, fontWeight: "600", fontSize: 15 },
+    hero: { alignItems: "center", gap: 10, marginVertical: 8 },
+    heroIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.blueLight, alignItems: "center", justifyContent: "center" },
+    heroTitle: { fontSize: 24, fontWeight: "800", textAlign: "center", color: colors.text },
+    heroAuthor: { color: colors.purple, fontWeight: "600", fontSize: 15 },
+    chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
+    chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.blueLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+    chipText: { color: colors.purple, fontWeight: "700", fontSize: 14 },
+    participantsBox: { alignItems: "center", gap: 8 },
+    avatarRow: { flexDirection: "row", alignItems: "center" },
+    avatarSlot: { shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+    avatarExtra: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.border, borderWidth: 2, borderColor: colors.background, alignItems: "center", justifyContent: "center" },
+    avatarExtraText: { fontSize: 11, fontWeight: "700", color: colors.textSecondary },
+    participantsCount: { fontSize: 13, color: colors.textMuted, fontWeight: "600" },
+    section: { gap: 6 },
+    sectionTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+    sectionBody: { fontSize: 15, color: colors.textSecondary, lineHeight: 22 },
+    joinBtn: { backgroundColor: colors.purple, borderRadius: 14, padding: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8 },
+    leaveBtn: { backgroundColor: "#ef4444" },
+    leftBtn: { backgroundColor: colors.ghostBg },
+    joinBtnOwn: { backgroundColor: "#a855f7" },
+    joinText: { color: "white", fontWeight: "700", fontSize: 16 },
+  }), [colors]);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const { triggerRefresh } = useHabits();
@@ -79,7 +123,7 @@ export default function ChallengeDetail() {
           .single(),
         supabase
           .from("habits")
-          .select(`user_id, profile:profiles!habits_user_id_fkey(pseudo)`)
+          .select(`user_id, profile:profiles!habits_user_id_fkey(pseudo, avatar_url)`)
           .eq("source_habit_id", id)
           .eq("is_active", true),
       ]);
@@ -90,7 +134,7 @@ export default function ChallengeDetail() {
       setIsOwn(own);
       setChallenge({ ...data, author: (data as any).author ?? { pseudo: "?" } });
       setParticipants(
-        (parts ?? []).map((p: any) => ({ user_id: p.user_id, pseudo: p.profile?.pseudo ?? "?" }))
+        (parts ?? []).map((p: any) => ({ user_id: p.user_id, pseudo: p.profile?.pseudo ?? "?", avatar_url: p.profile?.avatar_url ?? null }))
       );
 
       if (!own) {
@@ -141,7 +185,7 @@ export default function ChallengeDetail() {
     setJoined(true);
     setParticipants((prev) => {
       if (prev.some((p) => p.user_id === session!.user.id)) return prev;
-      return [...prev, { user_id: session!.user.id, pseudo: "Toi" }];
+      return [...prev, { user_id: session!.user.id, pseudo: "Toi", avatar_url: null }];
     });
     triggerRefresh();
     Alert.alert("Challenge rejoint !", `« ${challenge.title} » est dans ta liste.`);
@@ -170,7 +214,7 @@ export default function ChallengeDetail() {
   }
 
   if (loading)
-    return <View style={s.center}><ActivityIndicator color="#6366f1" size="large" /></View>;
+    return <View style={s.center}><ActivityIndicator color={colors.purple} size="large" /></View>;
 
   if (!challenge) return null;
 
@@ -192,23 +236,23 @@ export default function ChallengeDetail() {
     />
     <ScrollView style={s.container} contentContainerStyle={s.content}>
       <Pressable style={s.backBtn} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={22} color="#6366f1" />
+        <Ionicons name="arrow-back" size={22} color={colors.purple} />
         <Text style={s.backText}>Challenges</Text>
       </Pressable>
 
       <View style={s.hero}>
         <View style={s.heroIcon}>
-          <Ionicons name="trophy" size={40} color="#6366f1" />
+          <Ionicons name="trophy" size={40} color={colors.purple} />
         </View>
         <Text style={s.heroTitle}>{challenge.title}</Text>
         <Text style={s.heroAuthor}>par {challenge.author.pseudo}</Text>
       </View>
 
       <View style={s.chips}>
-        <View style={s.chip}><Ionicons name="repeat" size={15} color="#6366f1" /><Text style={s.chipText}>{freqLabel}</Text></View>
-        <View style={s.chip}><Ionicons name="flash" size={15} color="#6366f1" /><Text style={s.chipText}>+{challenge.xp_reward} XP</Text></View>
+        <View style={s.chip}><Ionicons name="repeat" size={15} color={colors.purple} /><Text style={s.chipText}>{freqLabel}</Text></View>
+        <View style={s.chip}><Ionicons name="flash" size={15} color={colors.purple} /><Text style={s.chipText}>+{challenge.xp_reward} XP</Text></View>
         {challenge.duration_days ? (
-          <View style={s.chip}><Ionicons name="calendar-outline" size={15} color="#6366f1" /><Text style={s.chipText}>{challenge.duration_days} jours</Text></View>
+          <View style={s.chip}><Ionicons name="calendar-outline" size={15} color={colors.purple} /><Text style={s.chipText}>{challenge.duration_days} jours</Text></View>
         ) : null}
       </View>
 
@@ -217,7 +261,7 @@ export default function ChallengeDetail() {
         <View style={s.avatarRow}>
           {shown.map((p, i) => (
             <View key={p.user_id} style={[s.avatarSlot, { zIndex: shown.length - i, marginLeft: i === 0 ? 0 : -10 }]}>
-              <Avatar pseudo={p.pseudo} size={36} />
+              <Avatar pseudo={p.pseudo} avatarUrl={p.avatar_url} size={36} />
             </View>
           ))}
           {extra > 0 && (
@@ -253,8 +297,8 @@ export default function ChallengeDetail() {
         </Pressable>
       ) : hasLeft ? (
         <View style={[s.joinBtn, s.leftBtn]}>
-          <Ionicons name="close-circle-outline" size={20} color="#6b7280" />
-          <Text style={[s.joinText, { color: "#6b7280" }]}>Challenge quitté</Text>
+          <Ionicons name="close-circle-outline" size={20} color={colors.textSecondary} />
+          <Text style={[s.joinText, { color: colors.textSecondary }]}>Challenge quitté</Text>
         </View>
       ) : (
         <Pressable style={s.joinBtn} onPress={join} disabled={joining}>
@@ -268,31 +312,3 @@ export default function ChallengeDetail() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  content: { padding: 24, paddingTop: 60, gap: 24 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
-  backText: { color: "#6366f1", fontWeight: "600", fontSize: 15 },
-  hero: { alignItems: "center", gap: 10, marginVertical: 8 },
-  heroIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: "#eef2ff", alignItems: "center", justifyContent: "center" },
-  heroTitle: { fontSize: 24, fontWeight: "800", textAlign: "center" },
-  heroAuthor: { color: "#6366f1", fontWeight: "600", fontSize: 15 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#eef2ff", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
-  chipText: { color: "#6366f1", fontWeight: "700", fontSize: 14 },
-  participantsBox: { alignItems: "center", gap: 8 },
-  avatarRow: { flexDirection: "row", alignItems: "center" },
-  avatarSlot: { shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
-  avatarExtra: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#e5e7eb", borderWidth: 2, borderColor: "white", alignItems: "center", justifyContent: "center" },
-  avatarExtraText: { fontSize: 11, fontWeight: "700", color: "#6b7280" },
-  participantsCount: { fontSize: 13, color: "#9ca3af", fontWeight: "600" },
-  section: { gap: 6 },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#333" },
-  sectionBody: { fontSize: 15, color: "#555", lineHeight: 22 },
-  joinBtn: { backgroundColor: "#6366f1", borderRadius: 14, padding: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8 },
-  leaveBtn: { backgroundColor: "#ef4444" },
-  leftBtn: { backgroundColor: "#f3f4f6" },
-  joinBtnOwn: { backgroundColor: "#a855f7" },
-  joinText: { color: "white", fontWeight: "700", fontSize: 16 },
-});

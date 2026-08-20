@@ -16,6 +16,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "yaninarazvetskaya@gmail.com",
+        "ascAppId": "6797025540",
+        "appleTeamId": "JTP96J6MQ3"
+      }
+    }
   }
 }

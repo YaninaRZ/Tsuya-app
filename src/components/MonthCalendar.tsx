@@ -35,7 +35,7 @@ export default function MonthCalendar() {
       .lte("completed_on", `${year}-${mm}-${String(lastDay).padStart(2, "0")}`);
     const c: Record<string, number> = {};
     const ti: Record<string, string[]> = {};
-    (data as LogRow[] ?? []).forEach((r) => {
+    (data as unknown as LogRow[] ?? []).forEach((r) => {
       c[r.completed_on] = (c[r.completed_on] ?? 0) + 1;
       if (!ti[r.completed_on]) ti[r.completed_on] = [];
       ti[r.completed_on].push(r.habits?.title ?? "Habitude supprimée");

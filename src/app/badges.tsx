@@ -8,37 +8,53 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 type BadgeDef = { key: string; label: string; description: string; greyImage: any; colorImage: any };
+type DbBadge = { key: string; label: string; description: string; image_color_url: string | null; image_grey_url: string | null };
 
-const BADGE_CATALOG: BadgeDef[] = [
-  { key: "blue-paw",     label: "Premier pas",     description: "Première habitude cochée",             greyImage: require("../../assets/images/badges/grey-blue-paw-badge.png"),        colorImage: require("../../assets/images/badges/blue-paw-badge.png") },
-  { key: "cats-blue",    label: "Challenge créé",  description: "Création d'une habitude publique",     greyImage: require("../../assets/images/badges/grey-cats-blue-badge.png"),       colorImage: require("../../assets/images/badges/cats-blue-badge.png") },
-  { key: "coins-fish",   label: "Riche en coins",  description: "100 premiers coins gagnés",            greyImage: require("../../assets/images/badges/grey-coins-fish-badge.png"),      colorImage: require("../../assets/images/badges/coins-fish-badge.png") },
-  { key: "green-jungle", label: "Jungle verte",    description: "7 habitudes validées",                 greyImage: require("../../assets/images/badges/grey-green-jungle-badge.png"),    colorImage: require("../../assets/images/badges/green-jungle-badge.png") },
-  { key: "money-jungle", label: "Grand dépensier", description: "1000 pièces dépensées",                greyImage: require("../../assets/images/badges/grey-money-jungle-badge.png"),    colorImage: require("../../assets/images/badges/money-jungle-badge.png") },
-  { key: "sleep-cat",    label: "Flemme royale",   description: "3 jours d'inactivité",                 greyImage: require("../../assets/images/badges/grey-sleep-cat-badge.png"),       colorImage: require("../../assets/images/badges/sleep-cat-badge.png") },
-  { key: "sun-cat",      label: "Soleil levant",   description: "5 jours d'activité consécutifs",       greyImage: require("../../assets/images/badges/grey-sun-cat-badge.png"),         colorImage: require("../../assets/images/badges/sun-cat-badge.png") },
-  { key: "two-cat",      label: "Populaire",       description: "10 membres ont rejoint mon challenge",  greyImage: require("../../assets/images/badges/grey-two-cat-badge.png"),         colorImage: require("../../assets/images/badges/two-cat-badge.png") },
-  { key: "two-paws",     label: "Nouveau look",    description: "Modification du banner profil",        greyImage: require("../../assets/images/badges/grey-two-paws-check-badge.png"),  colorImage: require("../../assets/images/badges/two-paws-check-badge.png") },
-];
+const LOCAL_IMAGE_MAP: Record<string, { grey: any; color: any }> = {
+  "blue-paw":     { grey: require("../../assets/images/badges/grey-blue-paw-badge.png"),       color: require("../../assets/images/badges/blue-paw-badge.png") },
+  "cats-blue":    { grey: require("../../assets/images/badges/grey-cats-blue-badge.png"),      color: require("../../assets/images/badges/cats-blue-badge.png") },
+  "coins-fish":   { grey: require("../../assets/images/badges/grey-coins-fish-badge.png"),     color: require("../../assets/images/badges/coins-fish-badge.png") },
+  "green-jungle": { grey: require("../../assets/images/badges/grey-green-jungle-badge.png"),   color: require("../../assets/images/badges/green-jungle-badge.png") },
+  "money-jungle": { grey: require("../../assets/images/badges/grey-money-jungle-badge.png"),   color: require("../../assets/images/badges/money-jungle-badge.png") },
+  "sleep-cat":    { grey: require("../../assets/images/badges/grey-sleep-cat-badge.png"),      color: require("../../assets/images/badges/sleep-cat-badge.png") },
+  "sun-cat":      { grey: require("../../assets/images/badges/grey-sun-cat-badge.png"),        color: require("../../assets/images/badges/sun-cat-badge.png") },
+  "two-cat":      { grey: require("../../assets/images/badges/grey-two-cat-badge.png"),        color: require("../../assets/images/badges/two-cat-badge.png") },
+  "two-paws":     { grey: require("../../assets/images/badges/grey-two-paws-check-badge.png"), color: require("../../assets/images/badges/two-paws-check-badge.png") },
+};
+
+function toFullDef(b: DbBadge): BadgeDef {
+  const local = LOCAL_IMAGE_MAP[b.key];
+  // DB URLs take priority over local assets (allow admin overrides)
+  return {
+    ...b,
+    colorImage: b.image_color_url ? { uri: b.image_color_url } : (local?.color ?? null),
+    greyImage:  b.image_grey_url  ? { uri: b.image_grey_url  } : (local?.grey  ?? null),
+  };
+}
 
 export default function BadgesPage() {
   const t = useTheme();
   const s = makeStyles(t);
   const { isDark } = useThemeMode();
   const { session } = useAuth();
+  const [catalog, setCatalog] = useState<BadgeDef[]>([]);
   const [earnedKeys, setEarnedKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<BadgeDef | null>(null);
 
   const fetchBadges = useCallback(async () => {
-    const { data } = await supabase.from("user_badges").select("badge_key").eq("user_id", session?.user.id);
-    setEarnedKeys(new Set((data ?? []).map((b) => b.badge_key)));
+    const [{ data: dbBadges }, { data: earned }] = await Promise.all([
+      supabase.from("badges").select("key, label, description, image_color_url, image_grey_url").order("created_at"),
+      supabase.from("user_badges").select("badge_key").eq("user_id", session?.user.id),
+    ]);
+    setCatalog((dbBadges ?? []).map(toFullDef));
+    setEarnedKeys(new Set((earned ?? []).map((b) => b.badge_key)));
     setLoading(false);
   }, [session]);
 
   useFocusEffect(useCallback(() => { fetchBadges(); }, [fetchBadges]));
 
-  const earnedCount = BADGE_CATALOG.filter(b => earnedKeys.has(b.key)).length;
+  const earnedCount = catalog.filter(b => earnedKeys.has(b.key)).length;
 
   if (loading) return <View style={s.center}><ActivityIndicator color="#3b82f6" /></View>;
 
@@ -50,12 +66,12 @@ export default function BadgesPage() {
         </Pressable>
         <View>
           <Text style={s.title}>Badges</Text>
-          <Text style={s.sub}>{earnedCount}/{BADGE_CATALOG.length} débloqués</Text>
+          <Text style={s.sub}>{earnedCount}/{catalog.length} débloqués</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={s.grid} showsVerticalScrollIndicator={false}>
-        {BADGE_CATALOG.map((def) => {
+        {catalog.map((def) => {
           const earned = earnedKeys.has(def.key);
           return (
             <Pressable
@@ -63,11 +79,17 @@ export default function BadgesPage() {
               style={[s.card, earned ? s.cardEarned : s.cardLocked]}
               onPress={() => setPreview(def)}
             >
-              <Image
-                source={earned ? def.colorImage : def.greyImage}
-                style={[s.img, !earned && s.imgLocked]}
-                resizeMode="contain"
-              />
+              {(earned ? def.colorImage : def.greyImage) ? (
+                <Image
+                  source={earned ? def.colorImage : def.greyImage}
+                  style={[s.img, !earned && s.imgLocked]}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={[s.img, s.imgFallback, !earned && s.imgLocked]}>
+                  <Ionicons name="ribbon" size={36} color={earned ? t.purple : t.border} />
+                </View>
+              )}
               {!earned && (
                 <View style={s.lockWrap}>
                   <Ionicons name="lock-closed" size={13} color={t.textMuted} />
@@ -89,11 +111,17 @@ export default function BadgesPage() {
                 <Ionicons name="close" size={22} color={t.textSecondary} />
               </Pressable>
 
-              <Image
-                source={isEarned ? preview.colorImage : preview.greyImage}
-                style={[s.previewImg, !isEarned && s.previewImgLocked]}
-                resizeMode="contain"
-              />
+              {(isEarned ? preview.colorImage : preview.greyImage) ? (
+                <Image
+                  source={isEarned ? preview.colorImage : preview.greyImage}
+                  style={[s.previewImg, !isEarned && s.previewImgLocked]}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={[s.previewImg, s.imgFallback, !isEarned && s.previewImgLocked]}>
+                  <Ionicons name="ribbon" size={80} color={isEarned ? t.purple : t.border} />
+                </View>
+              )}
 
               <View style={s.lockBadge}>
                 <Ionicons
@@ -139,13 +167,14 @@ function makeStyles(t: Theme) {
     title: { fontSize: 22, fontWeight: "800", color: t.text },
     sub: { fontSize: 12, color: t.textMuted, fontWeight: "600", marginTop: 2 },
 
-    grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12, paddingBottom: 40 },
+    grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12, paddingBottom: 40, justifyContent: "center" },
 
     card: { width: "30%", alignItems: "center", gap: 6, borderRadius: 18, padding: 14, borderWidth: 1.5, position: "relative" },
     cardEarned: { backgroundColor: t.card, borderColor: t.border },
     cardLocked: { backgroundColor: t.surface, borderColor: t.borderLight },
 
     img: { width: 70, height: 70 },
+    imgFallback: { alignItems: "center", justifyContent: "center" },
     imgLocked: { opacity: 0.25 },
     lockWrap: { position: "absolute", top: 8, right: 8 },
 

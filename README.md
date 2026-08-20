@@ -1,3 +1,5 @@
+English | [Français](README.fr.md)
+
 # Tsuya — Habit Tracker App
 
 Tsuya is a gamified habit tracking mobile application built with Expo and Supabase. Users build streaks, earn XP, level up, and unlock rewards by completing daily and weekly habits.

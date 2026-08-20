@@ -1,17 +1,18 @@
+import { useTheme } from "@/lib/theme";
 import { useMemo, useRef, useState } from "react";
 import {
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 const DAYS_BACK = 60;
 const DAYS_FORWARD = 14;
-const WEEKDAYS = ["D", "L", "M", "M", "J", "V", "S"]; // getDay: 0 = dimanche
+const WEEKDAYS = ["D", "L", "M", "M", "J", "V", "S"];
 const MONTHS = [
   "Janvier",
   "Février",
@@ -59,6 +60,20 @@ export default function WeekStrip({
   selectedDate: string;
   onSelect: (key: string) => void;
 }) {
+  const colors = useTheme();
+  const s = useMemo(() => StyleSheet.create({
+    wrap: { marginBottom: 16 },
+    month: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8, textTransform: "capitalize" },
+    row: { gap: GAP, paddingVertical: 4 },
+    day: { alignItems: "center", gap: 6, width: DAY_W },
+    label: { fontSize: 12, color: colors.textSecondary, fontWeight: "600" },
+    circle: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+    circleToday: { borderWidth: 2, borderColor: colors.blue },
+    circleSelected: { backgroundColor: colors.blue },
+    dateText: { fontSize: 15, color: colors.text, fontWeight: "600" },
+    dateTextSelected: { color: "white", fontWeight: "700" },
+  }), [colors]);
+
   const days = useMemo(buildDays, []);
   const todayKey = toKey(new Date());
   const ref = useRef<ScrollView>(null);
@@ -88,8 +103,25 @@ export default function WeekStrip({
           const key = toKey(d);
           const selected = key === selectedDate;
           const isToday = key === todayKey;
+          const dayName = [
+            "Dimanche",
+            "Lundi",
+            "Mardi",
+            "Mercredi",
+            "Jeudi",
+            "Vendredi",
+            "Samedi",
+          ][d.getDay()];
+          const monthName = MONTHS[d.getMonth()];
           return (
-            <Pressable key={key} style={s.day} onPress={() => onSelect(key)}>
+            <Pressable
+              key={key}
+              style={s.day}
+              onPress={() => onSelect(key)}
+              accessibilityRole="button"
+              accessibilityLabel={`${dayName} ${d.getDate()} ${monthName}${isToday ? ", aujourd'hui" : ""}${selected ? ", sélectionné" : ""}`}
+              accessibilityState={{ selected }}
+            >
               <Text style={s.label}>{WEEKDAYS[d.getDay()]}</Text>
               <View
                 style={[
@@ -110,27 +142,3 @@ export default function WeekStrip({
   );
 }
 
-const s = StyleSheet.create({
-  wrap: { marginBottom: 16 },
-  month: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 8,
-    textTransform: "capitalize",
-  },
-  row: { gap: GAP, paddingVertical: 4 },
-  day: { alignItems: "center", gap: 6, width: DAY_W },
-  label: { fontSize: 12, color: "#999", fontWeight: "600" },
-  circle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  circleToday: { borderWidth: 2, borderColor: "#3b82f6" },
-  circleSelected: { backgroundColor: "#3b82f6" },
-  dateText: { fontSize: 15, color: "#333", fontWeight: "600" },
-  dateTextSelected: { color: "white", fontWeight: "700" },
-});

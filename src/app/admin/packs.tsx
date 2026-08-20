@@ -119,7 +119,7 @@ export default function AdminPacks() {
   return (
     <View style={s.screen}>
       <View style={s.topBar}>
-        <Pressable onPress={() => router.back()} style={s.back}>
+        <Pressable onPress={() => router.push("/(tabs)/profil" as any)} style={s.back}>
           <Ionicons name="arrow-back" size={22} color="#6366f1" />
           <Text style={s.backText}>Profil</Text>
         </Pressable>

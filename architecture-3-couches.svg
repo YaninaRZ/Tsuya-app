@@ -1,0 +1,54 @@
+<svg viewBox="0 0 760 560" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Architecture réelle de TsuyaApp en 3 couches</title>
+<desc>Schéma montrant la couche Présentation et Orchestration (écrans) qui appelle directement Supabase pour lire et écrire les données, et qui utilise séparément une couche Contexte pour la session et l'état d'interface, sans que le Contexte ne s'interpose dans l'accès aux données.</desc>
+
+<rect width="760" height="560" fill="#ffffff"/>
+<style>
+  .box-title { font: 700 16px -apple-system, sans-serif; fill: #1a1a1a; }
+  .box-sub { font: 400 12.5px -apple-system, sans-serif; fill: #55575c; }
+  .box-item { font: 400 12px -apple-system, sans-serif; fill: #55575c; }
+  .lbl { font: 500 11.5px -apple-system, sans-serif; fill: #55575c; }
+  .note { font: 400 11px -apple-system, sans-serif; fill: #8a8d93; font-style: italic; }
+</style>
+
+<rect x="60" y="30" width="640" height="120" rx="10" fill="#f4f2ee" stroke="#d8d5cf" stroke-width="1.5"/>
+<text x="84" y="60" class="box-title">COUCHE PRÉSENTATION + ORCHESTRATION</text>
+<text x="84" y="80" class="box-sub">Écrans (index.tsx, profil.tsx…) — composants UI</text>
+<text x="84" y="102" class="box-item">• supabase.from('habits').select(...) — lectures</text>
+<text x="84" y="120" class="box-item">• supabase.rpc('complete_habit' | 'check_badges', ...) — écritures critiques</text>
+<text x="84" y="138" class="box-item">• useState local : habits, profile, streak, loading</text>
+
+<line x1="560" y1="150" x2="560" y2="380" stroke="#b0ada6" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="574" y="270" class="lbl">accès direct</text>
+<text x="574" y="285" class="lbl">(lecture + RPC)</text>
+
+<line x1="220" y1="150" x2="220" y2="230" stroke="#b0ada6" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow-rev)"/>
+<text x="234" y="185" class="lbl">session</text>
+<text x="234" y="200" class="lbl">état UI (modale)</text>
+
+<rect x="60" y="230" width="360" height="130" rx="10" fill="#f4f2ee" stroke="#d8d5cf" stroke-width="1.5"/>
+<text x="84" y="260" class="box-title">COUCHE CONTEXTE</text>
+<text x="84" y="280" class="box-sub">État transverse — ne gère pas l'accès aux données</text>
+<text x="84" y="302" class="box-item">• AuthContext — session, loading</text>
+<text x="84" y="320" class="box-item">• HabitsContext — modale, refreshKey</text>
+<text x="84" y="338" class="box-item">• ThemeContext — clair / sombre</text>
+
+<text x="84" y="410" class="note">Le Contexte alimente l'UI en état, mais n'est pas</text>
+<text x="84" y="426" class="note">un intermédiaire entre les écrans et Supabase.</text>
+
+<rect x="60" y="380" width="640" height="130" rx="10" fill="#f4f2ee" stroke="#d8d5cf" stroke-width="1.5"/>
+<text x="84" y="410" class="box-title">COUCHE DONNÉES</text>
+<text x="84" y="430" class="box-sub">Supabase — PostgreSQL + Auth + RPC + Storage</text>
+<text x="84" y="452" class="box-item">• RLS (Row Level Security) appliqué sur chaque table</text>
+<text x="84" y="470" class="box-item">• Fonctions RPC pour la logique critique (complete_habit, check_badges)</text>
+<text x="84" y="488" class="box-item">• habits, habit_logs, profiles, rewards</text>
+
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="#8a8780" transform="rotate(90 4 4)"/>
+  </marker>
+  <marker id="arrow-rev" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="#8a8780" transform="rotate(-90 4 4)"/>
+  </marker>
+</defs>
+</svg>
